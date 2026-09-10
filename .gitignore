@@ -1,0 +1,36 @@
+﻿# =========================
+# LaTeX
+# =========================
+*.aux
+*.bbl
+*.blg
+*.brf
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.pdf
+!docs/*.pdf
+!slides/*.pdf
+
+# =========================
+# Node / Web (Para futuros protótipos)
+# =========================
+node_modules/
+dist/
+build/
+.env
+
+# =========================
+# OS Generated Files
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
