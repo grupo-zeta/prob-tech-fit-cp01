@@ -85,3 +85,4 @@ Pendências de organização para a equipe:
 - Exportar para `docs/` a versão do relatório que será entregue, registrando sua data.
 - Adicionar as evidências e os slides nas pastas correspondentes.
 - Registrar versões do ambiente e resultados medidos antes de apresentar experimentos da CP-02 como validação do modelo.
+
