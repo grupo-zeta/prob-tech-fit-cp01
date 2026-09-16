@@ -22,9 +22,9 @@ Esta entrega (CP-01) foca em mapear dores reais do contexto escolar e alinhá-la
 ---
 
 ## 🔗 Links e Artefatos
-* 📋 **Quadro Trello (Gestão das Sprints):** link a preencher pela equipe.
+* 📋 **[Quadro Trello (Gestão das Sprints)](https://trello.com/b/0OXwZaKW)**
 * 📄 **[Relatório Técnico (Overleaf)](https://www.overleaf.com/project/6a922427f1ca2007335f685f)** — requer permissão no projeto.
-* 🖥️ **Deck de Apresentação:** link a preencher pela equipe; arquivos em [slides](slides/).
+* 🖥️ **[Deck de Apresentação (Canva)](https://canva.link/xdmufknua10pk0b)** — arquivos exportados em [slides](slides/).
 
 ## 📂 Estrutura do Repositório
 * `/docs`: Relatórios em PDF e cópias estáticas geradas a partir do Overleaf.
@@ -81,7 +81,6 @@ Consulte [CONTRIBUTING.md](CONTRIBUTING.md) antes de enviar alterações. `githu
 
 Pendências de organização para a equipe:
 
-- Preencher os links do Trello e da apresentação.
 - Exportar para `docs/` a versão do relatório que será entregue, registrando sua data.
 - Adicionar as evidências e os slides nas pastas correspondentes.
 - Registrar versões do ambiente e resultados medidos antes de apresentar experimentos da CP-02 como validação do modelo.
