@@ -1,5 +1,19 @@
 import streamlit as st
 import nltk
+import os
+
+# --- Correção para o erro de memória/accelerate no Windows ---
+os.makedirs("./offload", exist_ok=True)
+import transformers
+orig_from_pretrained = transformers.AutoModelForSequenceClassification.from_pretrained
+
+@classmethod
+def patched_from_pretrained(cls, *args, **kwargs):
+    kwargs["offload_folder"] = "./offload"
+    return orig_from_pretrained.__func__(cls, *args, **kwargs)
+
+transformers.AutoModelForSequenceClassification.from_pretrained = patched_from_pretrained
+# -----------------------------------------------------------
 
 try:
     from minicheck.minicheck import MiniCheck
