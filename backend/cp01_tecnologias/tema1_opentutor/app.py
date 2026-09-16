@@ -24,7 +24,7 @@ st.set_page_config(page_title="OpenTutor Zeta", layout="wide", page_icon="🎓")
 P1 = "AQ.Ab8RN6LnQRtUdWKaU"
 P2 = "vFVdG-8gT9395qeIefbrkTi928uG1Q8cQ"
 genai.configure(api_key=P1 + P2)
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-3.6-flash')
 
 st.title("🎓 OpenTutor Zeta: Estúdio de Co-Criação")
 st.markdown("**Combate ao Atalho Cognitivo via *Productive Offloading* e *Scaffolding Metacognitivo***")
