@@ -5,6 +5,7 @@ Integra RAG básico simulado e prompt-guardrails para evitar o "Atalho Cognitivo
 """
 import streamlit as st
 import time
+import random
 
 st.set_page_config(page_title="Tutor Socrático de IA", page_icon="🎓")
 
@@ -15,6 +16,15 @@ if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Olá! Sou seu tutor de IA. Qual conceito você está estudando hoje?"}
     ]
+
+# Lista de respostas genéricas socráticas para manter a ilusão da conversa
+respostas_genericas = [
+    "Interessante! E como você conectaria essa ideia com a realidade do dia a dia?",
+    "Excelente ponto! Mas pense por um instante: existem exceções para essa regra que você mencionou?",
+    "Compreendo sua visão. Se tivéssemos que analisar isso pelo ponto de vista oposto, quais seriam os argumentos?",
+    "Muito bom. Para aprofundarmos, qual você acha que é a causa raiz desse problema?",
+    "Faz sentido. Mas será que a tecnologia por si só resolve isso, ou o comportamento humano é o maior fator aí?"
+]
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -34,18 +44,16 @@ if prompt := st.chat_input("Digite sua dúvida aqui..."):
         time.sleep(1.5)
         
         prompt_lower = prompt.lower()
-        if "me dê a resposta" in prompt_lower or "faça para mim" in prompt_lower or "resuma" in prompt_lower or "escreva" in prompt_lower:
+        if any(palavra in prompt_lower for palavra in ["me dê a resposta", "faça para mim", "resuma", "escreva", "pronto", "pronta"]):
             resposta = (
                 "⚠️ **[GUARDRAIL ATIVADO]**\n\n"
-                "Eu percebi que você está pedindo a resposta final ou um resumo pronto. Como um Tutor Socrático, "
+                "Eu percebi que você está pedindo a resposta final ou um texto pronto. Como um Tutor Socrático, "
                 "meu objetivo é desenvolver o seu **letramento crítico** e não atuar como um atalho cognitivo.\n\n"
                 "Em vez de te dar a resposta, vamos construir juntos: **Qual é a primeira coisa que vem à sua mente sobre esse tema?**"
             )
         else:
-            resposta = (
-                "Excelente ponto! Para aprofundar seu raciocínio usando os conceitos de Thomas Kuhn, "
-                "como você acha que o 'paradigma' atual influencia essa sua visão? Tente elaborar mais."
-            )
+            # Sorteia uma resposta filosófica diferente para não repetir igual um papagaio
+            resposta = random.choice(respostas_genericas)
             
         message_placeholder.markdown(resposta)
         st.session_state.messages.append({"role": "assistant", "content": resposta})
