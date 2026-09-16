@@ -1,6 +1,6 @@
 # Apresentação
 
-Pasta reservada para o arquivo editável e o PDF da apresentação. O link de edição online ainda precisa ser informado pela equipe no README principal.
+Pasta reservada para o arquivo editável e o PDF da apresentação. Acesse o [deck de apresentação no Canva](https://canva.link/xdmufknua10pk0b), conforme as permissões de compartilhamento definidas pela equipe.
 
 Para novas versões, use nomes como `cp01-apresentacao-AAAA-MM-DD.pptx` e `cp01-apresentacao-AAAA-MM-DD.pdf`. Mantenha os dois arquivos correspondentes à mesma versão.
 
