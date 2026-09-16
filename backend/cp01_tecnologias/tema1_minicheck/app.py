@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import nltk
 
 try:
@@ -28,7 +28,7 @@ from nltk.tokenize import sent_tokenize
 def load_minicheck_model():
     # Inicializa o modelo real (RoBERTa-large ou Flan-T5)
     # roberta-large é o mais rápido/leve para CPU
-    return MiniCheck(model_name='roberta-large', device='cpu')
+    return MiniCheck(model_name='roberta-large', cache_dir='./ckpts')
 
 scorer = load_minicheck_model()
 
