@@ -1,4 +1,4 @@
-﻿# CP-01: Protótipos de Tecnologias Educacionais
+# CP-01: Protótipos de Tecnologias Educacionais
 
 Este diretório contém os códigos-fonte dos protótipos de demonstração para a entrega **CP-01 (Prob-Tech Fit)**, resolvendo dois dos problemas levantados pelo grupo.
 
@@ -14,7 +14,7 @@ Estes protótipos utilizam Python e exigem as bibliotecas correspondentes. Recom
 ### 1. Laboratório de Evidências (MiniCheck)
 No terminal, a partir da raiz do repositório:
 ```sh
-pip install streamlit nltk
+pip install streamlit nltk accelerate
 pip install "minicheck @ git+https://github.com/Liyan06/MiniCheck.git@main"
 streamlit run backend/cp01_tecnologias/tema1_minicheck/app.py
 ```
