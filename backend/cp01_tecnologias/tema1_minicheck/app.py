@@ -1,43 +1,71 @@
 ﻿import streamlit as st
-import time
+import nltk
 
-st.set_page_config(page_title="Laboratório de Evidências", layout="wide", page_icon="🛡️")
+try:
+    from minicheck.minicheck import MiniCheck
+    MINICHECK_INSTALLED = True
+except ImportError:
+    MINICHECK_INSTALLED = False
 
-st.title("🛡️ Laboratório de Evidências: RAG Fact-Checker")
-st.markdown("**Baseado no artigo [MiniCheck: Efficient Fact-Checking of LLMs (EMNLP 2024)](https://arxiv.org/abs/2404.10774)**")
-st.markdown("*Combate ao atalho cognitivo através do Letramento Digital Crítico: Transformando a IA em objeto de investigação, e não em um oráculo.*")
+st.set_page_config(page_title="Laboratório de Evidências (Real)", layout="wide", page_icon="🛡️")
 
-st.divider()
+st.title("🛡️ Laboratório de Evidências: RAG Fact-Checker (Motor Real)")
+st.markdown("**Utilizando a biblioteca oficial [MiniCheck](https://github.com/Liyan06/MiniCheck) rodando inferência real localmente!**")
+
+if not MINICHECK_INSTALLED:
+    st.error("⚠️ MiniCheck não está instalado. Feche isso e instale com: pip install \"minicheck @ git+https://github.com/Liyan06/MiniCheck.git@main\"")
+    st.stop()
+
+# Baixa tokenizador de sentenças do NLTK se não tiver
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+    nltk.download('punkt_tab')
+from nltk.tokenize import sent_tokenize
+
+@st.cache_resource
+def load_minicheck_model():
+    # Inicializa o modelo real (RoBERTa-large ou Flan-T5)
+    # roberta-large é o mais rápido/leve para CPU
+    return MiniCheck(model_name='roberta-large', device='cpu')
+
+scorer = load_minicheck_model()
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📄 Documento de Referência (Ground Truth)")
-    st.markdown("*(Material confiável base da disciplina)*")
-    doc_base = st.text_area("Texto:", height=200, 
-                       value="A Revolução Industrial foi um período de transição para novos processos de manufatura, que ocorreu de 1760 a algum momento entre 1820 e 1840. Esse período marcou a substituição do trabalho artesanal por máquinas, o uso da energia a vapor e o desenvolvimento do sistema fabril. A Revolução Industrial começou na Grã-Bretanha e a maioria das inovações tecnológicas foram de origem britânica.")
+    st.subheader("📄 Documento Fonte (Referência Acadêmica)")
+    doc_base = st.text_area("Texto fornecido pelo professor:", height=200, 
+                       value="O aumento da concentração de gases de efeito estufa contribui para o aquecimento global. A revolução industrial marcou o início das altas emissões de carbono na atmosfera devido à queima de combustíveis fósseis.")
 
 with col2:
-    st.subheader("🤖 Resposta Gerada por IA")
-    st.markdown("*(Texto que o aluno copiou do ChatGPT para entregar)*")
-    ia_resposta = st.text_area("Resposta Sintética:", height=200,
-                           value="A Revolução Industrial ocorreu entre 1760 e 1840, marcando a transição do trabalho manual para as máquinas. Ela começou simultaneamente na Grã-Bretanha e nos Estados Unidos, movida principalmente pela energia nuclear e a vapor, o que causou o fim imediato da pobreza na Europa.")
+    st.subheader("🤖 Resposta Gerada pela IA")
+    ia_resposta = st.text_area("O que o aluno tentou usar como resposta:", height=200,
+                           value="O aumento dos gases de efeito estufa contribui para o aquecimento global. Além disso, a revolução industrial ajudou a reduzir a temperatura média do planeta e eliminar os combustíveis fósseis.")
 
 st.write("")
-if st.button("🔎 Iniciar Verificação Cruzada de Factualidade (Modelo MiniCheck)", type="primary"):
-    with st.spinner("Analisando inferência textual natural e extraindo embeddings..."):
-        time.sleep(2.5) # Simula o processamento do modelo de linguagem
+if st.button("🔎 Executar MiniCheck Real (Inferência de Redes Neurais)", type="primary"):
+    with st.spinner("O modelo MiniCheck está lendo os textos e calculando a factualidade... (Pode levar alguns segundos na CPU)"):
+        # Quebrar a resposta em sentenças separadas (melhor prática do MiniCheck)
+        sentences = sent_tokenize(ia_resposta)
+        docs = [doc_base] * len(sentences)
+        
+        # Executa a inferência REAL
+        pred_label, raw_prob, _, _ = scorer.score(docs=docs, claims=sentences)
         
         st.subheader("📊 Resultados da Análise de Factualidade")
         
-        st.success("✔️ **Afirmação 1:** *A Revolução Industrial ocorreu entre 1760 e 1840, marcando a transição do trabalho manual para as máquinas.* \n\n**Status:** Suportada pelo documento base.")
+        for i, sentence in enumerate(sentences):
+            label = pred_label[i]
+            prob = raw_prob[i]
+            
+            if label == 1:
+                st.success(f"✔️ **Afirmação:** *{sentence}*\n\n**Status:** Suportada (Confiança da IA: {prob*100:.1f}%)")
+            else:
+                st.error(f"❌ **Afirmação:** *{sentence}*\n\n**Status:** Alucinação / Contradição (Confiança da IA: {prob*100:.1f}%)")
         
-        st.error("❌ **Afirmação 2:** *Ela começou simultaneamente na Grã-Bretanha e nos Estados Unidos...* \n\n**Status:** Contradição! O documento base afirma que começou apenas na Grã-Bretanha.")
-        
-        st.error("❌ **Afirmação 3:** *...movida principalmente pela energia nuclear e a vapor...* \n\n**Status:** Alucinação Detectada! A tecnologia nuclear não existia na época do texto base.")
-        
-        st.warning("⚠️ **Afirmação 4:** *...o que causou o fim imediato da pobreza na Europa.* \n\n**Status:** Informação não suportada (Falta de evidência no texto).")
-
         st.divider()
         st.markdown("### 🧠 Desafio de Letramento Crítico Ativado")
-        st.markdown("**Aluno:** O sistema detectou que você tentou usar a IA como um atalho cognitivo, e ela gerou desinformação. Sua tarefa agora é investigar o texto base e corrigir manualmente as afirmações marcadas em vermelho.")
+        st.markdown("**O que fazer agora?** Use as evidências do texto da esquerda para reescrever as afirmações em vermelho.")
+
