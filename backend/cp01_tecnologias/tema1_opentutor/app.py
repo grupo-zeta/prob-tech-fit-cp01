@@ -1,23 +1,30 @@
 ﻿import streamlit as st
+
 import warnings
 warnings.filterwarnings("ignore")
-import asyncio
-import sys
 
-# Corrige o erro de console no Windows (WinError 10054) fechando o loop de eventos corretamente
+import sys
+import os
+
+# Suprime os avisos chatos da biblioteca antiga no terminal
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+import logging
+logging.getLogger("google").setLevel(logging.ERROR)
+
+import asyncio
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-from google import genai
-import time
+import google.generativeai as genai
 
 # Configuração da Página
 st.set_page_config(page_title="OpenTutor Zeta", layout="wide", page_icon="🎓")
 
-# Chave API embutida de forma ofuscada
+# Chave API ofuscada
 P1 = "AQ.Ab8RN6LnQRtUdWKaU"
 P2 = "vFVdG-8gT9395qeIefbrkTi928uG1Q8cQ"
-client = genai.Client(api_key=P1 + P2)
+genai.configure(api_key=P1 + P2)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 st.title("🎓 OpenTutor Zeta: Estúdio de Co-Criação")
 st.markdown("**Combate ao Atalho Cognitivo via *Productive Offloading* e *Scaffolding Metacognitivo***")
@@ -50,10 +57,10 @@ with col2:
                     prompt_socratico = f"Atue como um tutor socrático. Crie 2 perguntas reflexivas sobre o texto abaixo. As perguntas NÃO devem ter respostas óbvias copiadas do texto. Elas devem forçar o aluno a conectar ideias e desenvolver agência epistêmica. Não dê a resposta, dê apenas provocações.\n\nTexto: {texto_aluno}"
                     prompt_pontos_cegos = f"Analise o texto abaixo e aponte 2 'Pontos Cegos' (lacunas de conhecimento). O que o texto NÃO explicou direito? O que o aluno deveria pesquisar fora daqui para ter uma compreensão real e não ficar dependente apenas desse resumo?\n\nTexto: {texto_aluno}"
                     
-                    # Chamada usando o novo SDK atualizado (google.genai)
-                    resp_flashcards = client.models.generate_content(model='gemini-1.5-flash', contents=prompt_flashcards)
-                    resp_socratico = client.models.generate_content(model='gemini-1.5-flash', contents=prompt_socratico)
-                    resp_pontos_cegos = client.models.generate_content(model='gemini-1.5-flash', contents=prompt_pontos_cegos)
+                    # Usando a biblioteca original que estava 100% funcional
+                    resp_flashcards = model.generate_content(prompt_flashcards)
+                    resp_socratico = model.generate_content(prompt_socratico)
+                    resp_pontos_cegos = model.generate_content(prompt_pontos_cegos)
                     
                     tab1, tab2, tab3 = st.tabs(["📇 Flashcards de Fixação", "🗣️ Quiz Socrático", "🔎 Pontos Cegos"])
                     
