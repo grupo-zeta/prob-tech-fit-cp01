@@ -14,7 +14,8 @@ Estes protótipos utilizam Python e exigem as bibliotecas correspondentes. Recom
 ### 1. Laboratório de Evidências (MiniCheck)
 No terminal, a partir da raiz do repositório:
 ```sh
-pip install streamlit
+pip install streamlit nltk
+pip install "minicheck @ git+https://github.com/Liyan06/MiniCheck.git@main"
 streamlit run backend/cp01_tecnologias/tema1_minicheck/app.py
 ```
 O navegador será aberto automaticamente na porta `8501`.
@@ -26,4 +27,5 @@ pip install pandas scikit-learn numpy
 python backend/cp01_tecnologias/tema2_evasao/predicao_oulad.py
 ```
 O script exibirá no terminal o relatório de classificação do algoritmo.
+
 
