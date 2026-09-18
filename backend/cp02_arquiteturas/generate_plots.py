@@ -1,7 +1,8 @@
-﻿"""
+"""
 Gerador de Grficos REAIS e Inferncia REAL para o Zeta-RAPUNet
 L o histrico verdadeiro salvo pelo train_zeta.py e faz inferncia em imagens de teste.
 """
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
