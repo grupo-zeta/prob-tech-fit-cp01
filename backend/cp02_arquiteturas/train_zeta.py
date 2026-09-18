@@ -1,4 +1,4 @@
-﻿"""
+"""
 Treinamento REAL do Zeta-RAPUNet no dataset Kvasir-SEG (Segmentação Médica de Pólipos)
 Este script carrega as imagens, aplica albumentations (Data Augmentation), usa Dice Loss e treina o modelo modificado com CAFormerS18.
 """
@@ -55,7 +55,9 @@ def load_kvasir_data(path_images, path_masks, limit=400):
     # Carregamento Real (limitando a 400 para no travar mquinas fracas, mas  dataset real)
     valid_images = sorted(os.listdir(img_dir))[:limit]
     
-    for img_name in valid_images:
+    for i, img_name in enumerate(valid_images):
+        if i % 50 == 0:
+            print(f"[{i}/{limit}] Carregando e processando imagens na memoria...")
         img_path = os.path.join(img_dir, img_name)
         mask_path = os.path.join(mask_dir, img_name)
         
@@ -79,22 +81,24 @@ def load_kvasir_data(path_images, path_masks, limit=400):
         images.append(img_aug / 255.0)
         masks.append(np.expand_dims(mask_aug / 255.0, axis=-1))
         
+    print("Sucesso! Imagens carregadas na memoria RAM.")
     return np.array(images, dtype=np.float32), np.array(masks, dtype=np.float32)
 
 # O zip Kvasir-SEG descompacta pastas em 'data/Kvasir-SEG/images' e 'data/Kvasir-SEG/masks'
-# Mas como o wget extraiu na raiz `data/`, a estrutura pode ser `data/Kvasir-SEG/images`.
-# Ajuste se necessario.
 base_data_path = './data/Kvasir-SEG'
 if not os.path.exists(base_data_path):
     base_data_path = './data'
 
-X, Y = load_kvasir_data(os.path.join(base_data_path, 'images'), os.path.join(base_data_path, 'masks'), limit=300)
+print("Iniciando o carregamento dos dados...")
+X, Y = load_kvasir_data(os.path.join(base_data_path, 'images'), os.path.join(base_data_path, 'masks'), limit=200) # baixei pra 200 pra carregar instantaneo
 x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.15, random_state=42)
 
-print(f"Treino: {x_train.shape}, Teste: {x_test.shape}")
+print(f"Tamanho Final - Treino: {x_train.shape}, Teste: {x_test.shape}")
 
 # 3. Criar Modelo Modificado (CAFormerS18 + Spatial Attention + Mish)
+print("\nConstruindo o cerebro da IA (Baixando pesos do CAFormer da internet, aguarde alguns segundos)...")
 model = RAPUNet_Zeta.create_model_zeta(img_height=IMG_SIZE, img_width=IMG_SIZE, input_chanels=3, out_classes=1, starting_filters=17)
+print("Modelo Zeta-RAPUNet construido com sucesso!")
 
 # 4. Compilar usando a Mtrica Oficial
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4), 
