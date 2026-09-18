@@ -60,10 +60,9 @@ def dice_coef(y_true, y_pred, smooth=1e-5):
     intersection = K.sum(y_true_f * y_pred_f)
     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
-def dice_loss(y_true, y_pred):
-    return 1.0 - dice_coef(y_true, y_pred)
-
-model = tf.keras.models.load_model(model_path, custom_objects={'dice_loss': dice_loss, 'dice_coef': dice_coef, 'Activation': tf.keras.layers.Activation})
+# Em vez de load_model (que dá crash com Lambdas no Keras 3), reconstruímos a arquitetura e carregamos os pesos:
+model = RAPUNet_Zeta.create_model_zeta(img_height=352, img_width=352, input_chanels=3, out_classes=1, starting_filters=17)
+model.load_weights(model_path)
 
 # Pega a primeira imagem de teste (exemplo da pasta)
 base_data_path = './data/Kvasir-SEG/images'
