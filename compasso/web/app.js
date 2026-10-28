@@ -187,38 +187,59 @@ function onResults(results){
 }
 $('cameraToggle').onclick=()=>cameraOn?stopCamera():startCamera();
 $('videoMode').onclick=()=>{videoVisible=!videoVisible;$('video').hidden=!videoVisible||!cameraOn;$('videoMode').textContent=videoVisible?'▣ Vídeo + HUD':'◎ Somente HUD';};
-const calibrationTargets=[['center','Centro',50,50],['left','Esquerda',10,50],['right','Direita',90,50],['up','Acima',50,22],['down','Abaixo',50,75]];
-function cancelCalibration(){if(calibrationRun?.timeout)clearTimeout(calibrationRun.timeout);calibrationRun=null;if($('calibrationDialog').open)$('calibrationDialog').close();$('captureCalibration').disabled=false;}
+const calibrationTargets=[['center','Centro',50,50],['left','Esquerda',8,50],['right','Direita',92,50],['up','Acima',50,18],['down','Abaixo',50,79]];
+function cancelCalibration(){if(calibrationRun?.timeout)clearTimeout(calibrationRun.timeout);if(calibrationRun?.advance)clearTimeout(calibrationRun.advance);const exit=calibrationRun?.ownsFullscreen;calibrationRun=null;if($('calibrationDialog').open)$('calibrationDialog').close();$('captureCalibration').disabled=false;if(exit&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});}
 function displayCalibrationTarget(){
  const [name,label,x,y]=calibrationTargets[calibrationRun.index];
  $('calibrationTarget').style.left=x+'%';$('calibrationTarget').style.top=y+'%';
  $('calibrationStep').textContent=`${calibrationRun.index+1} / 5 · ${label}`;
- $('calibrationHint').textContent='Olhe para o alvo sem girar a cabeça. Clique em Capturar ponto e continue olhando por cerca de um segundo.';
+ $('calibrationHint').textContent=calibrationRun.automatic?'Acompanhe somente o alvo amarelo. Os pontos avançam sozinhos; mantenha a cabeça confortável e parada.':'Clique em Começar e depois acompanhe somente o alvo amarelo. Você não precisa clicar a cada ponto.';
+ $('captureCalibration').textContent=calibrationRun.automatic?'Capturando automaticamente…':'Começar calibração';
  $('captureCalibration').disabled=false;
+ if(calibrationRun.automatic){$('captureCalibration').disabled=true;calibrationRun.advance=setTimeout(beginCalibrationCapture,250);}
 }
 $('calibrate').onclick=()=>{
  if(!cameraOn)return notify('Ative a câmera para calibrar o olhar.');
+ cancelCalibration();
  calibrationRun={index:0,samples:{},capturing:false};displayCalibrationTarget();$('calibrationDialog').showModal();
 };
 $('cancelCalibration').onclick=cancelCalibration;
 $('calibrationDialog').addEventListener('cancel',cancelCalibration);
 $('captureCalibration').onclick=()=>{
- if(!calibrationRun)return;calibrationRun.capturing=true;calibrationRun.current=[];calibrationRun.started=performance.now();
- $('captureCalibration').disabled=true;$('calibrationHint').textContent='Capturando… mantenha os olhos abertos e a cabeça parada.';
- calibrationRun.timeout=setTimeout(()=>{if(calibrationRun){calibrationRun.capturing=false;$('captureCalibration').disabled=false;$('calibrationHint').textContent='Não houve amostras válidas suficientes. Confira iluminação, rosto e íris, e tente capturar novamente.';}},12000);
+ if(!calibrationRun)return;
+ calibrationRun.automatic=true;
+ if(!document.fullscreenElement&&document.documentElement.requestFullscreen){
+  const run=calibrationRun;document.documentElement.requestFullscreen().then(()=>{if(calibrationRun===run)run.ownsFullscreen=true;else if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});}).catch(()=>{});
+ }
+ beginCalibrationCapture();
 };
+function beginCalibrationCapture(){
+ if(!calibrationRun)return;calibrationRun.capturing=true;calibrationRun.current=[];calibrationRun.started=performance.now();
+ calibrationRun.lastSample=0;calibrationRun.firstSample=0;calibrationRun.reason='Aguardando rosto e olhos visíveis.';
+ $('captureCalibration').disabled=true;$('captureCalibration').textContent='Acompanhe o alvo…';$('calibrationHint').textContent='Ajustando… olhe somente para o alvo amarelo. A captura começa em um segundo.';
+ calibrationRun.timeout=setTimeout(()=>{if(calibrationRun){calibrationRun.capturing=false;calibrationRun.automatic=false;$('captureCalibration').disabled=false;$('captureCalibration').textContent='Repetir este ponto';$('calibrationHint').textContent='Não houve amostras válidas suficientes. '+calibrationRun.reason+' Ajuste e repita somente este ponto.';}},15000);
+}
 function captureCalibrationSample(raw){
- const run=calibrationRun;if(!run?.capturing||!raw.head||!raw.iris?.open||!raw.iris.consistent)return;
- if(performance.now()-run.started<250)return;
- const base=run.samples.center?.[0]?.head;
- if(base&&(Math.abs(raw.head.yaw-base.yaw)>15||Math.abs(raw.head.pitch-base.pitch)>15||Math.abs(raw.head.roll-base.roll)>12))return;
- run.current.push(raw);$('calibrationStep').textContent=`${run.index+1} / 5 · ${Math.min(8,run.current.length)} de 8 amostras`;
- if(run.current.length<8)return;
+ const run=calibrationRun;if(!run?.capturing)return;
+ const reject=message=>{run.reason=message;if(performance.now()-run.started>=1000)$('calibrationHint').textContent=message;};
+ if(!raw.head)return reject('O rosto saiu do enquadramento. Posicione a câmera de frente.');
+ if(!raw.iris)return reject('As íris não estão visíveis. Melhore a luz e confira reflexos na lente.');
+ if(!raw.iris.open)return reject('Os olhos parecem fechados ou estão pouco visíveis. Olhe naturalmente para o alvo.');
+ if(!raw.iris.consistent)return reject('Os dois olhos ainda não deram uma leitura consistente. Ajuste a luz e a posição.');
+ const now=performance.now();if(now-run.started<1000||now-run.lastSample<80)return;
+ const center=run.samples.center;
+ const median=values=>values.sort((a,b)=>a-b)[Math.floor(values.length/2)];
+ const base=center?Object.fromEntries(['yaw','pitch','roll'].map(key=>[key,median(center.map(row=>row.head[key]))])):null;
+ if(base&&(Math.abs(raw.head.yaw-base.yaw)>15||Math.abs(raw.head.pitch-base.pitch)>15||Math.abs(raw.head.roll-base.roll)>12))return reject('A cabeça mudou de posição. Volte à posição central e mova somente os olhos.');
+ if(!run.firstSample)run.firstSample=now;run.lastSample=now;run.current.push(raw);
+ $('calibrationHint').textContent='Capturando… continue olhando para o alvo amarelo.';$('calibrationStep').textContent=`${run.index+1} / 5 · ${Math.min(8,run.current.length)} de 8 amostras`;
+ if(run.current.length<8||now-run.firstSample<750)return;
  clearTimeout(run.timeout);run.capturing=false;run.samples[calibrationTargets[run.index][0]]=run.current;
  run.index++;
+ while(run.index<calibrationTargets.length&&run.samples[calibrationTargets[run.index][0]])run.index++;
  if(run.index<calibrationTargets.length){displayCalibrationTarget();return;}
  try{const result=CompassoVision.calibrate(run.samples);calibrated=result;cancelCalibration();notify('Olhar calibrado pelas íris; a direção da cabeça é medida separadamente.');}
- catch(e){run.index=0;run.samples={};displayCalibrationTarget();$('calibrationHint').textContent=e.message;}
+ catch(e){run.index=Math.max(0,calibrationTargets.findIndex(target=>target[0]===e.target));delete run.samples[calibrationTargets[run.index][0]];run.automatic=false;displayCalibrationTarget();$('captureCalibration').textContent='Repetir este ponto';$('calibrationHint').textContent=e.message;}
 }
 window.addEventListener('pagehide',stopCamera);
 let refreshing=false;setInterval(async()=>{if(refreshing)return;refreshing=true;try{await refresh();}catch(e){notify('Conexão local interrompida. Reabra o Compasso para continuar.');}finally{refreshing=false;}},1000);

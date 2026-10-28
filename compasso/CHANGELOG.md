@@ -1,5 +1,13 @@
 # Histórico de alterações
 
+## 4.1.1 — 28/10/2026
+
+- Calibração com um clique inicial, intervalo de fixação, amostras espaçadas e avanço automático dos cinco alvos.
+- Ampliação da tela quando permitida; erros identificam o ponto e preservam os demais.
+- Mensagens distinguem rosto/íris ausentes, olhos pouco visíveis, leituras inconsistentes e movimento da cabeça.
+- Separação mínima dos alvos considera o ruído observado, com piso absoluto; leitura inconsistente continua recusada. A abertura ocular aceita proporções menores, mantendo olhos fechados sem leitura.
+- Testes com câmera e landmarks sintéticos aprovados; confirmação com webcam física pendente.
+
 ## 4.1.0 — 28/10/2026
 
 - Capturas opcionais por sessão, consentimento separado para análise, retenção limitada e exclusão após processamento.

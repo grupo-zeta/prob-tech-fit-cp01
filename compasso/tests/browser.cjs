@@ -22,9 +22,15 @@ const {chromium}=createRequire(path.join(runtime,'../package.json'))('playwright
   const calibrated=await page.evaluate(async()=>{
    document.querySelector('#hud').width=640;document.querySelector('#hud').height=640;
    document.querySelector('#calibrate').click();
+   document.querySelector('#captureCalibration').click();
    for(const[x,y]of[[.5,0],[.2,0],[.8,0],[.5,-.2],[.5,.2]]){
-    document.querySelector('#captureCalibration').click();calibrationRun.started=performance.now()-1000;
-    for(let i=0;i<8;i++)onResults(window.makeTestLandmarks(x,y));
+    while(!calibrationRun?.capturing)await new Promise(resolve=>setTimeout(resolve,30));
+    onResults(window.makeTestLandmarks(.5,.2));
+    if(calibrationRun.current.length)throw Error('A captura aceitou o olhar no botão antes do tempo de fixação.');
+    await new Promise(resolve=>setTimeout(resolve,1050));
+    for(let i=0;i<10&&calibrationRun?.capturing;i++){
+     onResults(window.makeTestLandmarks(x,y));await new Promise(resolve=>setTimeout(resolve,100));
+    }
    }
    onResults(window.makeTestLandmarks(.8,0));
    await api('camera',CompassoVision.analyze(window.makeTestLandmarks(.8,0),calibrated,1).metrics);

@@ -38,9 +38,10 @@
  function iris(face,aspect){
   const right=eye(face,33,133,159,145,468,aspect),left=eye(face,362,263,386,374,473,aspect);
   if(!right||!left)return null;
-  const open=right.open>.16&&left.open>.16;
+  const openness=Math.min(right.open,left.open);
+  const open=openness>.1;
   const consistent=Math.abs(right.x-left.x)<.3&&Math.abs(right.y-left.y)<.25;
-  return {x:(right.x+left.x)/2,y:(right.y+left.y)/2,open,consistent};
+  return {x:(right.x+left.x)/2,y:(right.y+left.y)/2,open,openness,consistent};
  }
  function angle(a,b,c){const u=sub(a,b),v=sub(c,b),denom=length(u)*length(v);return denom>1e-6?Math.acos(clamp(dot(u,v)/denom,-1,1))*rad:null;}
  function pose(landmarks,world,aspect){
@@ -67,17 +68,23 @@
  function calibrate(samples){
   const names=['center','left','right','up','down'];
   const result={};
+  const invalid=(message,target)=>{const error=Error(message);error.target=target;throw error;};
   for(const name of names){
    const rows=samples[name];
-   if(!rows||rows.length<8)throw Error('Mantenha o rosto visível e capture pelo menos 8 amostras por ponto.');
+   if(!rows||rows.length<8)invalid('Mantenha o rosto visível e capture pelo menos 8 amostras por ponto.',name);
    result[name]={x:median(rows.map(r=>r.iris.x)),y:median(rows.map(r=>r.iris.y))};
    if(median(rows.map(r=>Math.abs(r.iris.x-result[name].x)))>.08||median(rows.map(r=>Math.abs(r.iris.y-result[name].y)))>.06)
-    throw Error('O olhar variou muito durante a captura. Repita mantendo os olhos no alvo.');
+    invalid('O olhar variou muito durante a captura. Repita mantendo os olhos no alvo.',name);
    if(name==='center')result.head={yaw:median(rows.map(r=>r.head.yaw)),pitch:median(rows.map(r=>r.head.pitch)),roll:median(rows.map(r=>r.head.roll))};
   }
-  for(const [axis,negative,positive,min] of [['x','left','right',.025],['y','up','down',.015]]){
+  for(const [axis,negative,positive,floor] of [['x','left','right',.012],['y','up','down',.008]]){
    const c=result.center[axis],a=result[negative][axis]-c,b=result[positive][axis]-c;
-   if(Math.abs(a)<min||Math.abs(b)<min||a*b>=0)throw Error('Os pontos do olhar ficaram próximos ou inconsistentes. Repita olhando para cada alvo sem girar a cabeça.');
+   const noise=name=>median(samples[name].map(r=>Math.abs(r.iris[axis]-result[name][axis])));
+   for(const [name,distance] of [[negative,a],[positive,b]]){
+    if(Math.abs(distance)<Math.max(floor,3*Math.max(noise('center'),noise(name))))
+     invalid('Os pontos do olhar ficaram próximos ou inconsistentes. Vamos repetir só esta direção. Use a tela inteira e olhe para o alvo sem girar a cabeça.',name);
+   }
+   if(a*b>=0)invalid('Os pontos do olhar ficaram próximos ou inconsistentes. Vamos repetir esta direção: mantenha os olhos no alvo, não no botão.',positive);
   }
   return result;
  }

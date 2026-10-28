@@ -316,7 +316,7 @@ class Store:
             today=D.date.today().isoformat();now=time.monotonic()
             if self.report_cache is None or self.report_cache[1]!=today or now-self.report_cache[0]>5:
                 self.report_cache=(now,today,self.report())
-            return dict(version='4.1.0',token=self.token,active=active,paused=self.paused,elapsed=elapsed,live=self.live,
+            return dict(version='4.1.1',token=self.token,active=active,paused=self.paused,elapsed=elapsed,live=self.live,
                 category=self.live_category(),camera={k:v for k,v in self.camera.items() if k!='received'},
                 startup=startup_enabled(), report=self.report_cache[2],context=self.context.status())
 
@@ -427,7 +427,7 @@ def set_startup(enabled):
 
 
 def open_window(startup=False):
-    url = f'http://127.0.0.1:{PORT}/?v=4.1'+('&startup=1' if startup else '')
+    url = f'http://127.0.0.1:{PORT}/?v=4.1.1'+('&startup=1' if startup else '')
     candidates = [Path(os.environ.get('PROGRAMFILES(X86)',''))/'Microsoft/Edge/Application/msedge.exe',
                   Path(os.environ.get('PROGRAMFILES',''))/'Microsoft/Edge/Application/msedge.exe']
     for edge in candidates:

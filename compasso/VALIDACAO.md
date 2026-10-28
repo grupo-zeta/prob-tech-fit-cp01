@@ -21,3 +21,7 @@
 - A chave privada do autor autenticou na OpenAI, mas a inferência sintética foi recusada por falta de cota/créditos. Não há teste bem-sucedido de análise real da API; mocks cobrem o fluxo. Chave e créditos não acompanham o pacote.
 - Não há validação clínica, detector de ansiedade, diagnóstico de atenção ou prova de benefício educacional. Durações dos perfis são sugestões, não garantias de aprendizado.
 - A aprovação do professor e a revisão da equipe continuam externas à validação técnica.
+
+## Correção de calibração 4.1.1
+
+Fluxo automático no navegador aprovado com câmera sintética; amostras antes da fixação recusadas, cinco alvos coletados sem novos cliques e setas independentes preservadas. Testes geométricos cobrem pequenas amplitudes estáveis, rejeição por ruído e indicação do ponto inválido. O erro relatado na webcam física ainda precisa ser retestado pelo usuário; não foi possível ler sua mensagem exata pela automação do navegador.

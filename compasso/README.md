@@ -21,7 +21,7 @@ O HUD abre no Edge; sem Edge, usa o navegador padrão. O servidor atende somente
 1. Selecione um dos perfis prontos ou crie seu projeto em **+ Proj.**
 2. Escolha um bloco, **Personalizar** para informar de 1 a 1440 minutos, ou **Contínuo / 24h** para acompanhar sem limite de sessão.
 3. A opção **Ativar câmera ao iniciar ou retomar** vem ligada. Ao clicar em **Iniciar foco**, o navegador solicita a permissão necessária; se a câmera for recusada ou estiver ausente, o acompanhamento de janelas e entradas continua.
-4. Quando o rosto e as íris forem encontrados, siga a calibração de cinco alvos: centro, esquerda, direita, acima e abaixo. Mantenha a cabeça parada e capture oito amostras válidas por alvo.
+4. Quando o rosto e as íris forem encontrados, siga a calibração de cinco alvos: centro, esquerda, direita, acima e abaixo. Clique em **Começar calibração** uma vez. A tela é ampliada quando o navegador permite; acompanhe somente o alvo amarelo. Os pontos avançam automaticamente depois de um intervalo de fixação e uma coleta espaçada. Se um ponto falhar, o aplicativo explica o motivo e permite repetir somente ele.
 5. A seta **amarela**, na região dos olhos, mostra a direção ocular estimada. A seta **vermelha**, no nariz, mostra a direção da cabeça. Sem calibração válida, o programa não inventa uma direção ocular.
 6. Pause ou conclua. O tempo, as categorias e os registros ficam salvos no PC. O relatório permite consultar cada dia, exportar PDF/CSV e gerar backup JSON.
 

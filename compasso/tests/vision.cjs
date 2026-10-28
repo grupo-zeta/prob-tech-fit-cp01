@@ -33,6 +33,14 @@ assert.throws(()=>V.calibrate({center:samples.center}),/amostras/);
 assert.throws(()=>V.calibrate(Object.fromEntries(Object.keys(samples).map(k=>[k,samples.center]))),/inconsistentes/);
 const unstable={...samples,center:Array.from({length:8},(_,i)=>({...samples.center[0],iris:{...samples.center[0].iris,x:i%2?.7:.3}}))};
 assert.throws(()=>V.calibrate(unstable),/variou/);
+// A single weak direction identifies the point to repeat, preserving the others.
+try{V.calibrate({...samples,down:samples.center});assert.fail('Weak down target accepted');}
+catch(error){assert.equal(error.target,'down');}
+// Small but stable ocular motion on a compact screen is distinguishable from noise.
+const compact={};for(const [name,x,y]of[['center',.5,0],['left',.48,0],['right',.52,0],['up',.5,-.011],['down',.5,.011]])compact[name]=Array.from({length:8},()=>raw(x,y));
+assert.equal(V.analyze(fixture(.52,0),V.calibrate(compact),1).metrics.gaze_direction,'right');
+const noisy={...compact,right:Array.from({length:8},(_,i)=>raw(i%2?.54:.5,0))};
+assert.throws(()=>V.calibrate(noisy),/próximos|inconsistentes/);
 const f0=fixture(),m0=V.analyze(f0,cal,1).metrics,vectors=V.hudVectors(f0.faceLandmarks,m0);
 assert.equal(vectors.length,2);assert.deepEqual(vectors.map(v=>v.color),['#ff5e57','#ffdc4c']);
 assert.ok(vectors[0].start.y>vectors[1].start.y);
