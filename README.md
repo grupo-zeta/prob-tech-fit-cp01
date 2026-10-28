@@ -1,5 +1,12 @@
 ﻿# Grupo Zeta - Tecnologias na Educação
 
+## Compasso — aplicativo Windows
+
+Nova entrega em [compasso/](compasso/README.md): foco, seis sinais locais, relatórios, perfis de estudo, modo contínuo, captura opcional e bloqueio de páginas por extensão. O modo padrão não exige ChatGPT ou conta de IA. Veja [especificação](docs/specs/compasso-4.1.md), [validação e limites](compasso/VALIDACAO.md) e [handoff](docs/handoffs/compasso-2026-10-28.md).
+
+Os projetos CP01 e VisuTEA abaixo são preservados como trabalhos anteriores. A entrega Compasso não faz diagnóstico de ansiedade, emoção ou TEA.
+
+
 **Disciplina:** Tecnologias na Educação (Licenciatura em Computação)
 **Entrega:** CP-01 (Prob-Tech Fit)
 

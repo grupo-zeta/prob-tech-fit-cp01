@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+const policy=require('../extension/policy.js');
+let p={enabled:true,mode:'blocklist',domains:['youtube.com','web.whatsapp.com']};
+assert.equal(policy.blocked('https://www.youtube.com/watch?v=test',p),true);
+assert.equal(policy.blocked('https://youtube.com.evil.example/',p),false);
+assert.equal(policy.blocked('https://ufrpe.br/',p),false);
+assert.equal(policy.blocked('http://127.0.0.1:8765/',p),false);
+assert.equal(policy.blocked('chrome://settings/',p),false);
+assert.equal(policy.blocked('https://youtube.com/',{...p,enabled:false}),false);
+assert.equal(policy.rules(p,'chrome-extension://test/blocked.html').length,1);
+p={enabled:true,mode:'allowlist',domains:['ufrpe.br']};
+assert.equal(policy.blocked('https://docs.ufrpe.br/a',p),false);
+assert.equal(policy.blocked('https://web.whatsapp.com/',p),true);
+assert.equal(policy.blocked('http://localhost:8765/',p),false);
+assert.equal(policy.rules(p,'chrome-extension://test/blocked.html').length,2);
+assert.deepEqual(policy.rules({...p,enabled:false},'x'),[]);
+console.log('Focus policy checks passed: subdomains, allowlist, blocklist, local access and inactive sessions.');

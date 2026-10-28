@@ -1,0 +1,12 @@
+.env
+.env.*
+data/
+__pycache__/
+*.pyc
+runtime/
+work/
+dist/
+build/
+*.spec
+web/mediapipe/
+web/vendor/
