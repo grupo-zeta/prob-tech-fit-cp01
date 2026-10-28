@@ -82,3 +82,5 @@ A distribuição não carrega a chave do autor. Para os colegas, o modo local n�
 `python -m unittest discover -s tests -v` verifica armazenamento, consentimento, janelas, movimento, modelos opcionais e sessões contínuas. Os scripts Node em `tests/` verificam visão, bloqueio real em perfil isolado e interface. Use `COMPASSO_PORT` e `COMPASSO_DB` para bancos e portas de teste separados. Nenhum teste automatizado depende de webcam física.
 
 Para gerar o Windows portátil, instale PyInstaller em um ambiente de build e execute `python build_windows.py`. A saída fica em `dist/Compasso`. `python empacotar.py Compasso-fontes.zip` gera a distribuição de fontes limpa. Veja `VALIDACAO.md` para o que foi efetivamente verificado e o que permanece dependente de teste humano.
+
+[Guia de IA local](OLLAMA.md): configuração do Ollama e evidência do teste real com imagem sintética.

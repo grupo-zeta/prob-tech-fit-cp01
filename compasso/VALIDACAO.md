@@ -17,7 +17,7 @@
 - Webcam física, precisão individual do gaze, ergonomia e acessibilidade exigem conferência humana e calibração. As setas indicam estimativas geométricas.
 - Continuidade foi testada por simulação temporal, sem executar 24 horas corridas. Inicialização foi testada por fluxo equivalente, sem reiniciar o Windows.
 - A extensão precisa ser instalada e autorizada em cada navegador. Não bloqueia aplicativos nativos do Windows.
-- Ollama foi verificado com transporte simulado; um modelo visual precisa ser instalado pelo usuário. Não foi baixado um modelo para esta entrega.
+- Ollama 0.40.12 com gemma3:4b instalado neste PC: teste real por worker do Compasso com imagem sintética aprovado em 44,1 s; resumo em português persistido e imagem apagada. Não houve envio à OpenAI. Outros PCs precisam instalar o modelo e medir desempenho; veja OLLAMA.md.
 - A chave privada do autor autenticou na OpenAI, mas a inferência sintética foi recusada por falta de cota/créditos. Não há teste bem-sucedido de análise real da API; mocks cobrem o fluxo. Chave e créditos não acompanham o pacote.
 - Não há validação clínica, detector de ansiedade, diagnóstico de atenção ou prova de benefício educacional. Durações dos perfis são sugestões, não garantias de aprendizado.
 - A aprovação do professor e a revisão da equipe continuam externas à validação técnica.
