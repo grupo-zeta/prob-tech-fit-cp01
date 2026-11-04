@@ -249,7 +249,6 @@ function pdf(analysisOnly=false){
 $('pdf').onclick=safe(()=>pdf(false));$('aiPdf').onclick=safe(()=>pdf(true));
 function stopCamera(){
  const wasOn=cameraOn;cameraGeneration++;cameraOn=false;
- document.body.classList.remove('camera-active');
  if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;
  $('video').srcObject=null;$('video').hidden=true;$('cameraPlaceholder').hidden=false;
  $('cameraToggle').textContent='◉ Ativar câmera';$('cameraStatus').textContent='○ CÂMERA DESLIGADA · OPCIONAL';$('points').textContent='';
@@ -270,7 +269,7 @@ async function startCamera(){
   const settings=stream.getVideoTracks()[0].getSettings?.()||{};
   calibrationKey=CompassoCalibration.key({deviceId:settings.deviceId||'default-camera'},$('video').videoWidth||640,$('video').videoHeight||360,{width:screen.width,height:screen.height,pixelRatio:devicePixelRatio});
   calibrated=CompassoCalibration.load(calibrationStorage(),calibrationKey);calibrationStored=!!calibrated;
-  cameraOn=true;document.body.classList.add('camera-active');calibrationPrompted=!!calibrated;autoCalibrationSamples=[];lastRaw=null;blinkCount=0;totalBlinks=0;blinkClosed=false;lastCameraSend=0;showCalibrationSaved();
+  cameraOn=true;calibrationPrompted=!!calibrated;autoCalibrationSamples=[];lastRaw=null;blinkCount=0;totalBlinks=0;blinkClosed=false;lastCameraSend=0;showCalibrationSaved();
   $('hud').width=$('video').videoWidth;$('hud').height=$('video').videoHeight;
   $('cameraPlaceholder').hidden=true;$('video').hidden=!videoVisible;$('cameraToggle').textContent='◉ Desligar câmera';
   stream.getVideoTracks()[0].addEventListener('ended',()=>{stopCamera();notify('A câmera foi desconectada. Você pode continuar sem ela.');});
