@@ -123,22 +123,104 @@ function renderReport(){
 }
 function openClassification(context,category){classificationContext=context;$('classifyName').textContent=context.scope==='window'?`${context.title||'Sem título'} · ${context.app}`:context.app;$('classifyValue').value=category==='mixed'?'neutral':category;$('classifyDialog').showModal();}
 $('classifyDialog').addEventListener('close',safe(async()=>{if($('classifyDialog').returnValue!=='save')return;await api('classify',{...classificationContext,category:$('classifyValue').value});await loadReport();}));
+function computePredictiveMetrics(r){
+ if(!r||!r.total||r.total<30){
+  return {fatigue:null,dispersion:null,optimalRemaining:null,breakTime:'—',fatigueLevel:'Aguardando dados',dispersionLevel:'Aguardando dados',fatigueDesc:'Inicie uma sessão de estudo para o motor preditivo calcular a curva.',dispersionDesc:'Monitorando alternância de janelas e contexto...',fatigueColor:'var(--muted)',dispersionColor:'var(--muted)'};
+ }
+ const mins=r.total/60;
+ let fatigue=10;
+ if(mins<=20)fatigue+=mins*0.8;
+ else if(mins<=45)fatigue+=16+(mins-20)*1.5;
+ else fatigue+=53+Math.min(42,(mins-45)*1.2);
+ if(r.pose_coverage>20&&(r.posture/r.pose_coverage)<0.6)fatigue+=12;
+ if(r.face>20&&(r.centered/r.face)<0.6)fatigue+=8;
+ const inputRate=(r.keys+r.clicks)/Math.max(1,mins);
+ if(mins>30&&inputRate<3)fatigue+=10;
+ fatigue=Math.min(98,Math.max(8,Math.round(fatigue)));
+
+ let dispersion=10;
+ const switches=r.window_switches||r.switches||0;
+ const switchRate=switches/Math.max(1,mins);
+ if(switchRate>4)dispersion+=45;
+ else if(switchRate>2)dispersion+=28;
+ else if(switchRate>1)dispersion+=14;
+ const distRatio=(r.categories?.distraction||0)/r.total;
+ dispersion+=Math.round(distRatio*40);
+ if(r.gaze_coverage>20&&r.gaze_directions?.center){
+  const centerRatio=r.gaze_directions.center/r.gaze_coverage;
+  if(centerRatio<0.55)dispersion+=12;
+ }
+ dispersion=Math.min(98,Math.max(8,Math.round(dispersion)));
+
+ const remainingFactor=Math.max(0,1-(fatigue/100));
+ const optimalMins=Math.max(0,Math.round(45*remainingFactor));
+ let breakTime='Micropausa de 3 min';
+ if(fatigue>=70||mins>=60)breakTime='Pausa restauradora de 15 min';
+ else if(fatigue>=45||mins>=35)breakTime='Pausa adaptativa de 5 a 8 min';
+
+ const fatigueLevel=fatigue<35?'Baixa':fatigue<65?'Moderada':'Elevada';
+ const dispersionLevel=dispersion<35?'Estável':dispersion<65?'Alerta':'Alto Risco';
+ const fatigueColor=fatigue<35?'var(--focus)':fatigue<65?'#ffb84d':'var(--distraction)';
+ const dispersionColor=dispersion<35?'var(--focus)':dispersion<65?'#ffb84d':'var(--distraction)';
+ const fatigueDesc=fatigue<35?'Ritmo estável. Boa sustentação da atenção e postura alinhada.':fatigue<65?'Sinais de desaceleração motora e tempo de bloco se acumulando.':'Curva de esgotamento detectada. Recomenda-se pausar antes de iniciar novo bloco.';
+ const dispersionDesc=dispersion<35?`${switches} trocas de contexto. Fluxo de trabalho linear e focado.`:dispersion<65?`Média de ${switchRate.toFixed(1)} trocas de janela/minuto. Risco de fragmentação.`:`Trocas excessivas e tempo em distrações. Feche abas secundárias.`;
+
+ return {fatigue,dispersion,optimalRemaining:optimalMins,breakTime,fatigueLevel,dispersionLevel,fatigueDesc,dispersionDesc,fatigueColor,dispersionColor};
+}
 function insights(r){
  const focused=r.categories.focus+r.categories.study,coverage=pct(r.face,r.total),index=r.total>=60?pct(focused,r.total):null;
+ const pred=computePredictiveMetrics(r);
  suggested=r.total>=1500&&pct(r.categories.distraction,r.total)<20?50:25;
  const reasons=[];
  if(!r.total)reasons.push('Inicie uma sessão e classifique seus aplicativos. As análises aparecem com dados reais.');
+ if(pred.fatigue&&pred.fatigue>=50)reasons.push(`Alerta Preditivo: ${pred.fatigueDesc}`);
+ if(pred.dispersion&&pred.dispersion>=50)reasons.push(`Alerta de Dispersão: ${pred.dispersionDesc}`);
  if(r.total&&r.categories.neutral/r.total>.4)reasons.push(`${pct(r.categories.neutral,r.total)}% do tempo está neutro. Classifique os aplicativos no relatório para tornar o índice útil.`);
  if(r.total&&r.categories.distraction/r.total>.15)reasons.push(`${duration(r.categories.distraction)} em aplicativos classificados como distração. Feche ou silencie os que não ajudam sua tarefa.`);
- if((r.window_switches||r.switches)>10)reasons.push(`${r.window_switches||r.switches} trocas de janela ou contexto registradas. Agrupar consultas pode reduzir interrupções; alternar também pode fazer parte da tarefa.`);
- if(r.gaze_coverage&&r.gaze_directions.center/r.gaze_coverage<.6)reasons.push(`Olhar estimado fora do centro em ${pct(r.gaze_coverage-r.gaze_directions.center,r.gaze_coverage)}% das amostras válidas. Confira os alvos de calibração antes de interpretar o resultado.`);
- if(r.pose_coverage&&r.posture/r.pose_coverage<.6)reasons.push('Há desvios de alinhamento nos ombros ou tronco. Confira o enquadramento de quadris e ombros e ajuste sua posição, se necessário.');
- if(r.face&&r.centered/r.face<.65)reasons.push(`Cabeça fora do centro em ${pct(r.face-r.centered,r.face)}% do tempo com rosto visível. Confira a posição da câmera e recalibre; isso não comprova desatenção.`);
- if(r.total&&!r.face)reasons.push('Sem amostras de câmera. O relatório de uso funciona normalmente com a câmera desligada.');
- if(r.total&&!reasons.length)reasons.push('Há poucos desvios nas regras atuais. Compare com a tarefa que você realmente realizou.');
- return {index,coverage,reasons,plan:[`Escolha uma tarefa concreta e experimente um bloco de ${suggested} minutos. A sugestão é uma regra ajustável, não uma previsão de fadiga.`,`Mantenha os aplicativos necessários abertos e classifique o uso de acordo com sua atividade.`,`Ao concluir, faça uma pausa de 3 a 5 minutos e avalie se o ritmo funcionou para você.`]};
+ if((r.window_switches||r.switches)>10)reasons.push(`${r.window_switches||r.switches} trocas de janela ou contexto registradas. Agrupar consultas pode reduzir interrupções.`);
+ if(r.gaze_coverage&&r.gaze_directions.center/r.gaze_coverage<.6)reasons.push(`Olhar estimado fora do centro em ${pct(r.gaze_coverage-r.gaze_directions.center,r.gaze_coverage)}% das amostras válidas.`);
+ if(r.pose_coverage&&r.posture/r.pose_coverage<.6)reasons.push('Há desvios de alinhamento nos ombros ou tronco. Confira sua ergonomia e postura.');
+ if(r.face&&r.centered/r.face<.65)reasons.push(`Cabeça fora do centro em ${pct(r.face-r.centered,r.face)}% do tempo com rosto visível.`);
+ if(r.total&&!reasons.length)reasons.push('Padrão motor e postural consistente com baixo risco de fadiga iminente.');
+ const plan=[
+  `Janela de foco ideal: experimente um bloco de ${pred.optimalRemaining||suggested} minutos antes da próxima quebra de ritmo.`,
+  `Adote ${pred.breakTime.toLowerCase()} para restabelecer a capacidade de processamento cognitivo (Albulescu et al., 2022).`,
+  `Mantenha abertas somente as ferramentas essenciais para reduzir o custo cognitivo de alternância de contexto.`
+ ];
+ return {index,coverage,reasons,plan,pred};
 }
-function renderInsights(){const r=report,a=insights(r);$('score').textContent=a.index??'—';$('scoreLabel').textContent=a.index===null?'Aguardando ≥1 min':a.index>=70?'Foco classificado':a.index>=40?'Uso diversificado':'Revise as categorias';$('analysisFacts').innerHTML=`<div>• Foco / leitura: <span class="focus">${duration(r.categories.focus+r.categories.study)}</span></div><div>• Distração classificada: <span class="distraction">${pct(r.categories.distraction,r.total)}%</span></div><div>• Câmera com rosto: ${a.coverage}% do registro</div><div>• Fadiga / horário de pico: dados insuficientes</div><div>• Próximo bloco sugerido: ${suggested} min</div>`;$('bottlenecks').innerHTML=a.reasons.map(t=>`<div>${esc(t)}</div>`).join('');$('plan').innerHTML=a.plan.map(t=>`<li>${esc(t)}</li>`).join('');$('applyBlock').textContent=`ϟ Aplicar bloco (${suggested} min)`;}
+function renderInsights(){
+ const r=report,a=insights(r),pred=a.pred;
+ $('score').textContent=a.index??'—';
+ $('scoreLabel').textContent=a.index===null?'Aguardando ≥1 min':a.index>=70?'Foco consistente':a.index>=40?'Uso balanceado':'Atenção fragmentada';
+ $('analysisFacts').innerHTML=`<div>• Foco / leitura: <span class="focus">${duration(r.categories.focus+r.categories.study)}</span></div><div>• Distração: <span class="distraction">${pct(r.categories.distraction,r.total)}%</span></div><div>• Cobertura visual: ${a.coverage}% do tempo</div><div>• Curva de fadiga preditiva: ${pred.fatigue!==null?pred.fatigue+'% ('+pred.fatigueLevel+')':'calculando...'}</div><div>• Próximo bloco sugerido: ${suggested} min</div>`;
+ $('bottlenecks').innerHTML=a.reasons.map(t=>`<div>${esc(t)}</div>`).join('');
+ $('plan').innerHTML=a.plan.map(t=>`<li>${esc(t)}</li>`).join('');
+ $('applyBlock').textContent=`ϟ Aplicar bloco (${suggested} min)`;
+ if($('predFatigueVal')){
+  $('predFatigueVal').textContent=pred.fatigue!==null?`${pred.fatigue}%`:'—';
+  $('predFatigueVal').style.color=pred.fatigueColor;
+  $('predFatigueBadge').textContent=pred.fatigueLevel;
+  $('predFatigueBadge').style.borderColor=pred.fatigueColor;
+  $('predFatigueBadge').style.color=pred.fatigueColor;
+  $('predFatigueBar').style.width=(pred.fatigue||0)+'%';
+  $('predFatigueBar').style.background=pred.fatigueColor;
+  $('predFatigueDesc').textContent=pred.fatigueDesc;
+
+  $('predDispersionVal').textContent=pred.dispersion!==null?`${pred.dispersion}%`:'—';
+  $('predDispersionVal').style.color=pred.dispersionColor;
+  $('predDispersionBadge').textContent=pred.dispersionLevel;
+  $('predDispersionBadge').style.borderColor=pred.dispersionColor;
+  $('predDispersionBadge').style.color=pred.dispersionColor;
+  $('predDispersionBar').style.width=(pred.dispersion||0)+'%';
+  $('predDispersionBar').style.background=pred.dispersionColor;
+  $('predDispersionDesc').textContent=pred.dispersionDesc;
+
+  $('predOptimalWindow').textContent=pred.optimalRemaining!==null?`~${pred.optimalRemaining} min restantes`:'Calculando...';
+  $('predBreakRecommendation').textContent=pred.breakTime;
+  $('predictiveStatus').textContent=pred.fatigue!==null?'● MODELO ATIVO':'○ AGUARDANDO SESSÃO';
+ }
+}
 $('applyBlock').onclick=()=>{if(state.active)return notify('Conclua a sessão atual para alterar o bloco.');window.setCompassoGoal?.(suggested);setTab('focus');notify(`Bloco ajustado para ${suggested} minutos. Clique em Iniciar foco quando estiver pronto.`);};
 function download(name,body,type){const url=URL.createObjectURL(new Blob([body],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 $('export').onclick=safe(async()=>{const r=await fetch('/api/backup');if(!r.ok)throw Error('Falha ao exportar backup');download('compasso-backup.json',JSON.stringify(await r.json(),null,2),'application/json');});
