@@ -3,16 +3,17 @@ let selectedCaptures=new Set(),captureSignature='',reviewSignature='';
 let previousContextSession=null;
 const guardSaved=saved('compasso.guard',{mode:'blocklist',domains:['youtube.com','instagram.com','tiktok.com','facebook.com','web.whatsapp.com','discord.com']});
 $('guardMode').value=guardSaved.mode;$('guardDomains').value=guardSaved.domains.join(', ');
+$('guardEnabled').checked=true;$('captureEnabled').checked=true;$('aiAuto').checked=true;$('approveUpload').checked=true;
 const preferredProvider=saved('compasso.analysisProvider','local');
 $('analysisProvider').value=['local','ollama','openai'].includes(preferredProvider)?preferredProvider:'local';$('reviewProvider').value=$('analysisProvider').value;
 function updateProvider(value,refresh=true){
  $('analysisProvider').value=value;$('reviewProvider').value=value;localStorage.setItem('compasso.analysisProvider',JSON.stringify(value));
- $('approveUpload').checked=false;$('aiAuto').checked=false;
+ $('approveUpload').checked=true;$('aiAuto').checked=true;
  $('localModelField').hidden=value!=='ollama';
- $('uploadConsentText').textContent=value==='openai'?'Autorizo enviar as capturas selecionadas à OpenAI para esta análise. Pode gerar custos da API.':'Autorizo processar as capturas selecionadas no modelo Ollama deste computador.';
+ $('uploadConsentText').textContent=value==='openai'?'Autorizo enviar as capturas selecionadas à OpenAI para esta análise. Pode gerar custos da API.':'Autorizo processar as capturas selecionadas no modelo local ou Ollama deste computador.';
  $('autoAnalysisLabel').textContent=value==='openai'?'Enviar capturas à OpenAI automaticamente':'Interpretar capturas no modelo local automaticamente';
- $('autoAnalysisHint').textContent=value==='openai'?'Até 8 envios por sessão. Pode gerar custos da API.':'Até 8 análises por sessão. Requer Ollama e um modelo visual instalado no PC.';
- $('providerHint').textContent=value==='local'?'Sem ChatGPT, API ou modelo: a análise de métricas aparece abaixo. As imagens podem ser revistas manualmente.':value==='ollama'?'Ollama: interpretação de imagens no próprio PC, sem chave de API. Instale um modelo visual, como gemma3:4b.':'OpenAI: opção externa, com chave e créditos de API próprios. A chave do autor não faz parte da distribuição.';
+ $('autoAnalysisHint').textContent=value==='openai'?'Até 8 envios por sessão. Pode gerar custos da API.':'Até 8 análises por sessão. Processamento local e privado.';
+ $('providerHint').textContent=value==='local'?'Modo local: métricas e modelo preditivo integrado 100% offline.':value==='ollama'?'Ollama: interpretação de imagens no próprio PC, sem chave de API. Instale um modelo visual, como gemma3:4b.':'OpenAI: opção externa, com chave e créditos de API próprios.';
  document.querySelector('.billing-link').hidden=value!=='openai';
  if(state&&refresh)window.renderCompassoContext?.();
 }
@@ -26,7 +27,7 @@ window.contextStartOptions=()=>{
   capture_interval:Number($('captureInterval').value),guard_enabled:$('guardEnabled').checked,guard_mode:$('guardMode').value,domains,
   analysis_provider:$('analysisProvider').value,local_model:$('localModel').value};
 };
-$('captureEnabled').onchange=()=>{$('aiAuto').disabled=!$('captureEnabled').checked||$('analysisProvider').value==='local';if(!$('captureEnabled').checked)$('aiAuto').checked=false;};
+$('captureEnabled').onchange=()=>{$('aiAuto').disabled=!$('captureEnabled').checked;if(!$('captureEnabled').checked)$('aiAuto').checked=false;};
 $('captureNow').onclick=safe(async()=>{await api('capture_now');notify('Troque para a janela desejada. A captura autorizada será feita em 5 segundos.');});
 $('stopCaptures').onclick=safe(async()=>{await api('context_stop');await refresh();});
 $('extensionGuide').onclick=()=>$('extensionDialog').showModal();
@@ -42,11 +43,11 @@ window.renderCompassoContext=()=>{
  const active=!!state.active;
  if(active&&$('analysisProvider').value!==c.options.analysis_provider)updateProvider(c.options.analysis_provider,false);
  $('reviewProvider').disabled=active;
- if(previousContextSession&&!active){$('captureEnabled').checked=false;$('aiAuto').checked=false;$('guardEnabled').checked=false;$('approveUpload').checked=false;}
+ if(previousContextSession&&!active){$('captureEnabled').checked=true;$('aiAuto').checked=true;$('guardEnabled').checked=true;$('approveUpload').checked=true;}
  previousContextSession=state.active?.id||null;
  document.body.classList.toggle('captures-active',active&&c.options.capture_enabled);
  for(const id of ['objective','guardEnabled','guardMode','guardDomains','captureEnabled','captureInterval','analysisProvider','localModel'])$(id).disabled=active;
- $('aiAuto').disabled=active||!$('captureEnabled').checked||$('analysisProvider').value==='local';
+ $('aiAuto').disabled=active||!$('captureEnabled').checked;
  if(active){$('captureEnabled').checked=c.options.capture_enabled;$('aiAuto').checked=c.options.allow_ai_upload;}
  $('captureNow').disabled=!active||state.paused||!c.options.capture_enabled||c.capture_busy;
  $('stopCaptures').disabled=!active||!c.options.capture_enabled;

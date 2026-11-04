@@ -1,7 +1,9 @@
 'use strict';
 const $ = id => document.getElementById(id);
+let isWidgetMode = false;
 function centerCompassoWindow(){
  try {
+  if (isWidgetMode) return;
   if (window.screen && screen.availWidth) {
    const targetW = Math.min(880, screen.availWidth - 40);
    const targetH = Math.min(840, screen.availHeight - 60);
@@ -23,6 +25,57 @@ document.addEventListener('click', e => {
   if (!inDialog) e.target.close();
  }
 });
+function toggleWidgetMode() {
+ isWidgetMode = !isWidgetMode;
+ document.body.classList.toggle('widget-mode', isWidgetMode);
+ const btn = $('widgetToggle');
+ if (btn) btn.textContent = isWidgetMode ? '\u2922 Expandir' : '\u23F1 Rel\u00F3gio';
+ try {
+  if (window.screen && screen.availWidth) {
+   if (isWidgetMode) {
+    window.resizeTo(360, 240);
+    if (!pinned) {
+     pinned = true;
+     api('pin');
+     $('pin').textContent = '\u2663 Fixado';
+    }
+   } else {
+    centerCompassoWindow();
+   }
+  }
+ } catch(_) {}
+}
+if ($('widgetToggle')) $('widgetToggle').onclick = toggleWidgetMode;
+
+let tutorialStep = 0;
+const totalTutorialSteps = 4;
+function showTutorialStep(idx) {
+ tutorialStep = Math.max(0, Math.min(totalTutorialSteps - 1, idx));
+ document.querySelectorAll('.tutorial-slide').forEach((s, i) => s.classList.toggle('active', i === tutorialStep));
+ document.querySelectorAll('.tutorial-dot').forEach((d, i) => d.classList.toggle('active', i === tutorialStep));
+ if ($('tutorialPrev')) $('tutorialPrev').disabled = (tutorialStep === 0);
+ if ($('tutorialNext')) {
+  $('tutorialNext').textContent = (tutorialStep === totalTutorialSteps - 1) ? '\u2713 Concluir' : 'Pr\u00F3ximo \u27E9';
+ }
+}
+function openTutorial() {
+ showTutorialStep(0);
+ $('tutorialDialog').showModal();
+}
+if ($('openTutorial')) $('openTutorial').onclick = openTutorial;
+if ($('closeTutorial')) $('closeTutorial').onclick = () => $('tutorialDialog').close();
+if ($('tutorialPrev')) $('tutorialPrev').onclick = () => showTutorialStep(tutorialStep - 1);
+if ($('tutorialNext')) $('tutorialNext').onclick = () => {
+ if (tutorialStep >= totalTutorialSteps - 1) {
+  localStorage.setItem('compasso.tutorialSeen', 'true');
+  $('tutorialDialog').close();
+ } else {
+  showTutorialStep(tutorialStep + 1);
+ }
+};
+if (!localStorage.getItem('compasso.tutorialSeen')) {
+ setTimeout(openTutorial, 600);
+}
 const colors={focus:'#37d0a0',study:'#6378ff',neutral:'#a37be4',distraction:'#f56978',mixed:'#b6a8d0'};
 const labels={focus:'Foco',study:'Leitura',neutral:'Neutro',distraction:'Distração',mixed:'Misto'};
 let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, videoVisible=true, cameraGeneration=0;
