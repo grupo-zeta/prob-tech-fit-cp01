@@ -3,8 +3,8 @@ const $ = id => document.getElementById(id);
 function centerCompassoWindow(){
  try {
   if (window.screen && screen.availWidth) {
-   const targetW = 510;
-   const targetH = Math.min(940, screen.availHeight - 50);
+   const targetW = Math.min(880, screen.availWidth - 40);
+   const targetH = Math.min(840, screen.availHeight - 60);
    const left = Math.max(0, Math.round((screen.availWidth - targetW) / 2));
    const top = Math.max(0, Math.round((screen.availHeight - targetH) / 2));
    window.resizeTo(targetW, targetH);
