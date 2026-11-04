@@ -1,5 +1,28 @@
 'use strict';
 const $ = id => document.getElementById(id);
+function centerCompassoWindow(){
+ try {
+  if (window.screen && screen.availWidth) {
+   const targetW = 510;
+   const targetH = Math.min(940, screen.availHeight - 50);
+   const left = Math.max(0, Math.round((screen.availWidth - targetW) / 2));
+   const top = Math.max(0, Math.round((screen.availHeight - targetH) / 2));
+   window.resizeTo(targetW, targetH);
+   window.moveTo(left, top);
+  }
+ } catch(_) {}
+}
+centerCompassoWindow();
+window.addEventListener('load', centerCompassoWindow);
+setTimeout(centerCompassoWindow, 250);
+setTimeout(centerCompassoWindow, 750);
+document.addEventListener('click', e => {
+ if (e.target.tagName === 'DIALOG' && e.target.open) {
+  const rect = e.target.getBoundingClientRect();
+  const inDialog = (rect.top <= e.clientY && e.clientY <= rect.bottom && rect.left <= e.clientX && e.clientX <= rect.right);
+  if (!inDialog) e.target.close();
+ }
+});
 const colors={focus:'#37d0a0',study:'#6378ff',neutral:'#a37be4',distraction:'#f56978',mixed:'#b6a8d0'};
 const labels={focus:'Foco',study:'Leitura',neutral:'Neutro',distraction:'Distração',mixed:'Misto'};
 let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, videoVisible=true, cameraGeneration=0;
