@@ -251,6 +251,12 @@ class ContextTests(unittest.TestCase):
         self.store.action('pause',{});self.assertTrue(self.store.context.policy()['enabled'])
         self.store.action('finish',{});self.assertFalse(self.store.context.policy()['enabled'])
 
+    def test_weekly_rhythm_summary(self):
+        report = self.store.report()
+        self.assertIn('weekly', report)
+        self.assertEqual(len(report['weekly']), 7)
+        self.assertTrue(report['weekly'][-1]['is_today'])
+
     def test_contextual_category_inference(self):
         from app import infer_category
         self.assertEqual(infer_category('Steam.exe'), 'distraction')

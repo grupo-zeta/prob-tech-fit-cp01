@@ -366,11 +366,45 @@ class Store:
         session_params=[day,day,day]
         if session_id is not None:session_query+=' AND s.id=?';session_params.append(session_id)
         sessions=[dict(r) for r in self.db.execute(session_query+' GROUP BY s.id ORDER BY s.id DESC',session_params)]
+
+        # Weekly rhythm: last 7 days ending on selected day
+        d_end = D.date.fromisoformat(day)
+        days_7 = [(d_end - D.timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
+        day_names = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+        week_samples = self.db.execute('''
+            SELECT substr(ts,1,10) as day, app, window_key, window_title, SUM(seconds) as sec
+            FROM samples
+            WHERE substr(ts,1,10) BETWEEN ? AND ?
+            GROUP BY substr(ts,1,10), app, window_key, window_title
+        ''', (days_7[0], days_7[-1])).fetchall()
+        
+        day_buckets = {d: {'total': 0.0, 'focus': 0.0} for d in days_7}
+        for row in week_samples:
+            d = row['day']
+            sec = row['sec']
+            cat = window_category_map.get(row['window_key'], category_map.get(row['app'], infer_category(row['app'], row['window_title'] or '')))
+            if d in day_buckets:
+                day_buckets[d]['total'] += sec
+                if cat in ('focus', 'study'):
+                    day_buckets[d]['focus'] += sec
+        
+        weekly = []
+        for d in days_7:
+            dt = D.date.fromisoformat(d)
+            b = day_buckets[d]
+            weekly.append({
+                'date': d,
+                'weekday': day_names[dt.weekday()],
+                'is_today': (d == day),
+                'focus_minutes': round(b['focus'] / 60.0, 1),
+                'total_minutes': round(b['total'] / 60.0, 1)
+            })
+
         return dict(day=day,total=total,categories=cats,apps=sorted(apps.values(),key=lambda a:-a['seconds']),
             windows=sorted(windows.values(),key=lambda a:-a['seconds']),window_switches=window_switches,
             gaze_directions=gaze_directions,gaze_coverage=gaze_coverage,pose_coverage=pose_coverage,head_coverage=head_coverage,
             moves=moves,mouse_distance=mouse_distance,blinks=blinks,
-            face=face,centered=centered,posture=posture,switches=switches,keys=keys,clicks=clicks,scroll=scroll,idle=idle,timeline=timeline,sessions=sessions)
+            face=face,centered=centered,posture=posture,switches=switches,keys=keys,clicks=clicks,scroll=scroll,idle=idle,timeline=timeline,sessions=sessions,weekly=weekly)
 
     def state(self):
         with self.lock:

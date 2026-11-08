@@ -234,6 +234,9 @@
       </div>
       <div class="camera-controls">
         <button id="cameraToggle">◉ Ativar Câmera</button>
+        <label class="eco-camera-label" title="Limita a taxa de amostragem facial para 1 checagem a cada 2s para poupar processamento e bateria de notebook">
+          <input type="checkbox" id="ecoCamera" checked> 🔋 Modo Eco (Poupar bateria)
+        </label>
         <span id="cameraHelp">Processamento local no PC · Nenhum vídeo é salvo</span>
       </div>
     </article>
@@ -306,6 +309,15 @@
       </div>
       <p id="reportText">Inicie sua primeira sessão para visualizar as métricas do dia.</p>
       <div class="daily-progress"><i id="dailyProgress"></i></div>
+    </article>
+
+    <article class="weekly-card">
+      <div class="section-heading">
+        <h2>RITMO SEMANAL DE HIPERFOCO (ÚLTIMOS 7 DIAS)</h2>
+        <span class="meta-tag">1h hiperfoco > 6h zumbi</span>
+      </div>
+      <p class="muted tiny">Acompanhamento dos blocos de estudo nos últimos 7 dias. O foco consistente rende mais que maratonas exaustivas.</p>
+      <div id="weeklyChart" class="weekly-chart"></div>
     </article>
 
     <article>
