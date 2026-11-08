@@ -1054,3 +1054,148 @@ dialog .actions {
     flex-direction: column;
   }
 }
+
+
+/* ==========================================================================
+   Destravar com IA (Rescue) & Celebração Metacognitiva
+   ========================================================================== */
+
+.rescue-container {
+  margin-top: 12px;
+}
+
+.rescue-btn {
+  width: 100%;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px dashed rgba(139, 92, 246, 0.45);
+  color: #D8B4FE;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rescue-btn:hover {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: #8B5CF6;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.rescue-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: var(--cyan-subtle);
+  border: 1px solid rgba(0, 209, 231, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+
+.rescue-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.rescue-option {
+  text-align: left;
+  display: block;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rescue-option:hover {
+  background: var(--panel-hover);
+  border-color: var(--cyan);
+  transform: translateY(-1px);
+}
+
+.rescue-option b {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.rescue-option small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.rescue-custom {
+  margin: 12px 0;
+}
+
+.rescue-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rescue-output {
+  background: rgba(0, 209, 231, 0.08);
+  border: 1px solid rgba(0, 209, 231, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin: 12px 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.rescue-response-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--cyan);
+  margin-bottom: 6px;
+}
+
+.celebration-content {
+  text-align: center;
+  padding: 6px;
+}
+
+.celebration-icon {
+  font-size: 44px;
+  margin-bottom: 8px;
+}
+
+.star-rating {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.star-btn {
+  font-size: 28px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  min-height: auto;
+  transition: transform 0.15s, color 0.15s;
+}
+
+.star-btn:hover, .star-btn.active {
+  color: #FACC15;
+  transform: scale(1.15);
+}

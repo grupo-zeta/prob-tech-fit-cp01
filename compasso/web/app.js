@@ -133,7 +133,12 @@ function stopCamera(){
  $('video').srcObject=null;$('video').hidden=true;$('cameraPlaceholder').hidden=false;
  $('cameraToggle').textContent='◉ Ativar câmera';$('cameraStatus').textContent='○ CÂMERA DESLIGADA · OPCIONAL';$('points').textContent='';
  const canvas=$('hud');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
- for(const id of ['gaze','head','posture','face']){$(id).textContent='Câmera desligada';$(id).title='';}
+ $('cameraStatus').textContent='○ MODO JANELAS ATIVO · CÂMERA OPCIONAL';
+  $('gaze').textContent='Modo Janelas Ativo (Câmera Opcional)';
+  $('head').textContent='Câmera Opcional';
+  $('posture').textContent='Monitoramento Silencioso';
+  $('face').textContent='Câmera Opcional';
+  $('signalMetrics').textContent='Janelas e entradas monitoradas em tempo real. Câmera opcional.';
  $('signalMetrics').textContent='Ative a câmera durante uma sessão para ver as medidas.';
  cancelCalibration();calibrated=null;lastLandmarks=null;
  if(wasOn&&token)api('camera_off',{},true).catch(()=>{});
@@ -244,3 +249,69 @@ function captureCalibrationSample(raw){
 window.addEventListener('pagehide',stopCamera);
 let refreshing=false;setInterval(async()=>{if(refreshing)return;refreshing=true;try{await refresh();}catch(e){notify('Conexão local interrompida. Reabra o Compasso para continuar.');}finally{refreshing=false;}},1000);
 refresh().catch(e=>notify(e.message));
+
+
+// ==========================================================================
+// Destravar com Copiloto IA & Celebração Metacognitiva
+// ==========================================================================
+if ($('rescueBtn')) {
+  $('rescueBtn').onclick = () => {
+    $('rescueOutput').hidden = true;
+    $('rescueDialog').showModal();
+  };
+  $('closeRescue').onclick = () => $('rescueDialog').close();
+
+  function showRescueAdvice(text) {
+    $('rescueResponseText').innerHTML = text;
+    $('rescueOutput').hidden = false;
+  }
+
+  $('rescueBreakdown').onclick = () => {
+    const obj = $('objective').value.trim() || 'sua tarefa atual';
+    showRescueAdvice(`<b>Meta: ${esc(obj)}</b><br><br>1. <b>Isole o primeiro micro-passo:</b> Faça apenas os primeiros 5 a 10 minutos (ex.: leia 1 página ou escreva 1 função).<br>2. <b>Não busque perfeição de início:</b> Faça um rascunho rápido e imperfeito.<br>3. <b>Teste imediato:</b> Quando terminar este pedaço, risque da lista mental e continue.`);
+  };
+
+  $('rescueFeynman').onclick = () => {
+    showRescueAdvice(`<b>Dica do Método Feynman:</b><br><br>Finja que você precisa explicar este conceito para uma criança de 10 anos.<br>• Quais termos complicados você precisaria substituir por analogias do dia a dia?<br>• Onde a sua explicação gaguejou? É exatamente aí que está o ponto que você precisa reler.`);
+  };
+
+  $('rescuePause').onclick = safe(async () => {
+    if (state.active && !state.paused) {
+      await api('pause');
+      if (stream) stopCamera();
+      await refresh();
+    }
+    showRescueAdvice(`☕ <b>Micro-pausa ativada!</b><br><br>Feche os olhos por 60 segundos ou olhe para um ponto distante pela janela. Respire fundo 3 vezes e tome um copo d'água antes de retomar.`);
+  });
+
+  $('rescueSubmit').onclick = () => {
+    const q = $('rescueQuery').value.trim();
+    if (!q) return notify('Digite uma dúvida ou conceito para destravar.');
+    showRescueAdvice(`<b>Provocação Socrática para "${esc(q)}":</b><br><br>• Qual é o primeiro princípio fundamental por trás disso?<br>• O que aconteceria se tentássemos resolver da forma mais ingênua possível primeiro?<br>• Experimente anotar em 1 linha o que você já sabe sobre isso antes de procurar a resposta pronta.`);
+  };
+
+  // Celebração ao Concluir Bloco
+  let currentStars = 5;
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.onclick = () => {
+      currentStars = Number(btn.dataset.star);
+      $('starRatingValue').value = currentStars;
+      document.querySelectorAll('.star-btn').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.star) <= currentStars);
+      });
+    };
+  });
+
+  $('finish').onclick = () => {
+    if (!state.active) return;
+    $('celebrationDialog').showModal();
+  };
+
+  $('confirmCelebration').onclick = safe(async () => {
+    $('celebrationDialog').close();
+    await api('finish');
+    stopCamera();
+    await refresh();
+    notify(`Bloco concluído com nota ${currentStars}/5 de compreensão! Histórico registrado.`);
+  });
+}

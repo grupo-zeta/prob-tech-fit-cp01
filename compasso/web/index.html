@@ -113,6 +113,10 @@
         <button id="pause" disabled>⏸ Pausar</button>
         <button id="finish" disabled>✓ Concluir Bloco</button>
       </div>
+      <!-- Botão de Destrave Pedagógico com IA -->
+      <div class="rescue-container">
+        <button type="button" id="rescueBtn" class="rescue-btn">💡 Empacou no conteúdo? Destravar com Copiloto IA</button>
+      </div>
       <div class="progress"><i id="progress"></i></div>
     </article>
 
@@ -525,6 +529,72 @@
   <div class="actions">
     <button id="startupLater">Escolher Depois</button>
     <button class="primary" id="startupBegin">Iniciar Hiperfoco</button>
+  </div>
+</dialog>
+
+<dialog id="rescueDialog" aria-labelledby="rescueTitle">
+  <div class="rescue-header">
+    <span class="rescue-badge">🤖 COPILOTO SOCRÁTICO</span>
+    <h2 id="rescueTitle">Como posso te ajudar a destravar?</h2>
+    <p class="tiny muted">Quando empacamos, a tendência natural é buscar alívio rápido no YouTube ou redes sociais. Escolha uma estratégia abaixo para recuperar o fluxo de estudo:</p>
+  </div>
+  
+  <div class="rescue-options">
+    <button type="button" class="rescue-option" id="rescueBreakdown">
+      <b>🧩 Quebrar a tarefa em 3 passos simples</b>
+      <small>Ideal para quando a atividade parece grande demais e você não sabe por onde começar.</small>
+    </button>
+    <button type="button" class="rescue-option" id="rescueFeynman">
+      <b>📖 Explicar de forma simples (Método Feynman)</b>
+      <small>Para quando a linguagem do texto, fórmula ou código está densa e confusa.</small>
+    </button>
+    <button type="button" class="rescue-option" id="rescuePause">
+      <b>☕ Micro-pausa de 2 minutos para descompressão</b>
+      <small>Para sobrecarga cognitiva: fechar os olhos, afastar da tela e respirar fundo.</small>
+    </button>
+  </div>
+
+  <div class="rescue-custom">
+    <label class="field-label" for="rescueQuery">Ou descreva sua dúvida rápida:</label>
+    <div class="rescue-input-row">
+      <input id="rescueQuery" placeholder="Ex.: Não entendi a regra da cadeia no cálculo / dúvida em herança POO">
+      <button class="primary" id="rescueSubmit" type="button">Pedir Dica</button>
+    </div>
+  </div>
+
+  <div id="rescueOutput" class="rescue-output" hidden>
+    <div class="rescue-response-header">
+      <span class="privacy-dot"></span> <b>Orientação do Copiloto:</b>
+    </div>
+    <div id="rescueResponseText"></div>
+  </div>
+
+  <div class="actions">
+    <button type="button" id="closeRescue">Voltar ao Foco</button>
+  </div>
+</dialog>
+
+<dialog id="celebrationDialog">
+  <div class="celebration-content">
+    <div class="celebration-icon">🎉</div>
+    <h2>Bloco de Hiperfoco Concluído!</h2>
+    <p id="celebrationMessage">Excelente trabalho! 1 hora de foco real rende mais do que uma tarde inteira dispersa.</p>
+    
+    <div class="rating-section">
+      <label class="field-label">De 1 a 5 estrelas, quanto você sente que absorveu do conteúdo?</label>
+      <div class="star-rating" id="starRating">
+        <button type="button" class="star-btn active" data-star="1">★</button>
+        <button type="button" class="star-btn active" data-star="2">★</button>
+        <button type="button" class="star-btn active" data-star="3">★</button>
+        <button type="button" class="star-btn active" data-star="4">★</button>
+        <button type="button" class="star-btn active" data-star="5">★</button>
+      </div>
+      <input type="hidden" id="starRatingValue" value="5">
+    </div>
+    
+    <div class="actions">
+      <button class="primary" id="confirmCelebration" type="button">Concluir e Salvar no Histórico</button>
+    </div>
   </div>
 </dialog>
 </body>

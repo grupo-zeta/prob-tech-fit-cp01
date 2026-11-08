@@ -41,6 +41,37 @@ def window_key(app, title):
     return hashlib.sha256((app+'\0'+title).encode('utf-8')).hexdigest()
 
 
+def infer_category(app, title=''):
+    """Safe contextual heuristics: avoids aggressive assumptions, checks clear indicators."""
+    a = (app or '').lower()
+    t = (title or '').lower()
+    distraction_apps = ('steam', 'epicgames', 'riotclient', 'leagueclient', 'valorant', 'roblox', 'minecraft', 'genshinimpact')
+    if any(k in a for k in distraction_apps):
+        return 'distraction'
+    if any(k in a or k in t for k in ('tiktok', 'instagram', 'twitter', 'x.com/')):
+        return 'distraction'
+    if any(k in t for k in ('fatura', 'boleto', 'comprovante', 'recibo', 'nota fiscal', 'extrato')):
+        return 'neutral'
+    study_portals = ('classroom.google.com', 'moodle', 'canvas.instructure', 'coursera.org', 'khanacademy.org', 'edx.org', 'scielo.org', 'arxiv.org', 'overleaf.com')
+    if any(k in a or k in t for k in study_portals):
+        return 'study'
+    if 'youtube.com' in a or 'youtube' in t or 'twitch.tv' in a or 'twitch' in t:
+        if 'twitch' in a or 'twitch' in t:
+            return 'distraction'
+        edu_keywords = ('aula', 'curso', 'tutorial', 'cálculo', 'calculo', 'introdução', 'introducao',
+                        'seminário', 'seminario', 'palestra', 'teorema', 'física', 'fisica',
+                        'química', 'quimica', 'algoritmo', 'programação', 'programacao', 'didática', 'didatica')
+        if any(w in t for w in edu_keywords):
+            return 'study'
+        gaming_keywords = ('gameplay', 'highlights', 'melhores momentos', 'minecraft', 'roblox', 'meme', 'vlog')
+        if any(w in t for w in gaming_keywords):
+            return 'distraction'
+        return 'neutral'
+    if any(k in a for k in ('visual studio code', 'code.exe', 'pycharm', 'intellij', 'sublime_text')):
+        return 'focus'
+    return 'neutral'
+
+
 def number(data, key, low=-180, high=180):
     value = data.get(key)
     if value is None: return None
@@ -224,12 +255,15 @@ class Store:
 
     def category(self, app):
         row = self.db.execute('SELECT category FROM categories WHERE app=?', (app,)).fetchone()
-        return row[0] if row else 'neutral'
+        return row[0] if row else infer_category(app)
 
     def live_category(self):
-        key = window_key(self.live['app'],self.live.get('window_title',''))
-        row = self.db.execute('SELECT category FROM window_categories WHERE window_key=?',(key,)).fetchone()
-        return row[0] if row else self.category(self.live['app'])
+        title = self.live.get('window_title', '')
+        key = window_key(self.live['app'], title)
+        row = self.db.execute('SELECT category FROM window_categories WHERE window_key=?', (key,)).fetchone()
+        if row: return row[0]
+        app_row = self.db.execute('SELECT category FROM categories WHERE app=?', (self.live['app'],)).fetchone()
+        return app_row[0] if app_row else infer_category(self.live['app'], title)
 
     def report(self, day=None, session_id=None):
         day = day or D.date.today().isoformat()
@@ -252,7 +286,7 @@ class Store:
         prev = None
         for r in rows:
             sec = r['seconds']
-            category = window_category_map.get(r['window_key'], category_map.get(r['app'], 'neutral'))
+            category = window_category_map.get(r['window_key'], category_map.get(r['app'], infer_category(r['app'], r.get('window_title', ''))))
             r['category'] = category
             total += sec
             cats[category] += sec

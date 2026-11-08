@@ -251,4 +251,16 @@ class ContextTests(unittest.TestCase):
         self.store.action('pause',{});self.assertTrue(self.store.context.policy()['enabled'])
         self.store.action('finish',{});self.assertFalse(self.store.context.policy()['enabled'])
 
+    def test_contextual_category_inference(self):
+        from app import infer_category
+        self.assertEqual(infer_category('Steam.exe'), 'distraction')
+        self.assertEqual(infer_category('msedge.exe', 'TikTok - Make Your Day'), 'distraction')
+        self.assertEqual(infer_category('Acrobat.exe', 'Fatura_Novembro_2026.pdf'), 'neutral')
+        self.assertEqual(infer_category('chrome.exe', 'Comprovante de Pagamento Bancario'), 'neutral')
+        self.assertEqual(infer_category('msedge.exe', 'Aula 04 - Calculo Diferencial e Integral - YouTube'), 'study')
+        self.assertEqual(infer_category('msedge.exe', 'Gameplay Minecraft Sobrevivencia Ep 10 - YouTube'), 'distraction')
+        self.assertEqual(infer_category('msedge.exe', 'Video Qualquer - YouTube'), 'neutral')
+        self.assertEqual(infer_category('msedge.exe', 'Turma de Algoritmos - classroom.google.com'), 'study')
+        self.assertEqual(infer_category('Code.exe', 'app.py - Compasso'), 'focus')
+
 if __name__=='__main__':unittest.main()
