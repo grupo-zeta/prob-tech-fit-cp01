@@ -255,12 +255,16 @@ class ContextTests(unittest.TestCase):
         from app import infer_category
         self.assertEqual(infer_category('Steam.exe'), 'distraction')
         self.assertEqual(infer_category('msedge.exe', 'TikTok - Make Your Day'), 'distraction')
+        self.assertEqual(infer_category('msedge.exe', 'WhatsApp Web - Conversas'), 'distraction')
         self.assertEqual(infer_category('Acrobat.exe', 'Fatura_Novembro_2026.pdf'), 'neutral')
+        self.assertEqual(infer_category('Acrobat.exe', 'Artigo_Zimmerman_Autorregulacao_2002.pdf'), 'study')
         self.assertEqual(infer_category('chrome.exe', 'Comprovante de Pagamento Bancario'), 'neutral')
         self.assertEqual(infer_category('msedge.exe', 'Aula 04 - Calculo Diferencial e Integral - YouTube'), 'study')
         self.assertEqual(infer_category('msedge.exe', 'Gameplay Minecraft Sobrevivencia Ep 10 - YouTube'), 'distraction')
         self.assertEqual(infer_category('msedge.exe', 'Video Qualquer - YouTube'), 'neutral')
         self.assertEqual(infer_category('msedge.exe', 'Turma de Algoritmos - classroom.google.com'), 'study')
+        self.assertEqual(infer_category('msedge.exe', 'Portal do Aluno UFRPE - SIGA'), 'study')
+        self.assertEqual(infer_category('chrome.exe', 'Overleaf - Relatorio Tecnico CP-01'), 'study')
         self.assertEqual(infer_category('Code.exe', 'app.py - Compasso'), 'focus')
 
     def test_auto_tracking_triggers_on_sustained_study(self):

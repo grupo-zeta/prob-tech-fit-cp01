@@ -48,26 +48,32 @@ def infer_category(app, title=''):
     distraction_apps = ('steam', 'epicgames', 'riotclient', 'leagueclient', 'valorant', 'roblox', 'minecraft', 'genshinimpact')
     if any(k in a for k in distraction_apps):
         return 'distraction'
-    if any(k in a or k in t for k in ('tiktok', 'instagram', 'twitter', 'x.com/')):
+    distraction_sites = ('tiktok', 'instagram', 'twitter', 'x.com', 'facebook.com', 'whatsapp', 'discord', 'telegram', 'reddit.com', 'netflix.com')
+    if any(k in a or k in t for k in distraction_sites):
         return 'distraction'
-    if any(k in t for k in ('fatura', 'boleto', 'comprovante', 'recibo', 'nota fiscal', 'extrato')):
+    if any(k in t for k in ('fatura', 'boleto', 'comprovante', 'recibo', 'nota fiscal', 'extrato', 'pagamento', 'cartao', 'cartão')):
         return 'neutral'
-    study_portals = ('classroom.google.com', 'moodle', 'canvas.instructure', 'coursera.org', 'khanacademy.org', 'edx.org', 'scielo.org', 'arxiv.org', 'overleaf.com')
+    study_portals = ('classroom', 'moodle', 'canvas', 'coursera', 'khanacademy', 'edx', 'scielo', 'arxiv', 'overleaf', 'siga', 'portal do aluno', 'ava.ufrpe')
     if any(k in a or k in t for k in study_portals):
         return 'study'
+    if any(k in a for k in ('acrord32', 'acrobat', 'foxitreader', 'sumatrapdf')) or '.pdf' in t:
+        academic_keywords = ('artigo', 'paper', 'livro', 'tcc', 'monografia', 'tese', 'dissertacao', 'dissertação', 'apostila', 'capitulo', 'capítulo', 'aula', 'pesquisa', 'autorregulacao', 'autorregulação')
+        if any(w in t for w in academic_keywords):
+            return 'study'
     if 'youtube.com' in a or 'youtube' in t or 'twitch.tv' in a or 'twitch' in t:
         if 'twitch' in a or 'twitch' in t:
             return 'distraction'
         edu_keywords = ('aula', 'curso', 'tutorial', 'cálculo', 'calculo', 'introdução', 'introducao',
                         'seminário', 'seminario', 'palestra', 'teorema', 'física', 'fisica',
-                        'química', 'quimica', 'algoritmo', 'programação', 'programacao', 'didática', 'didatica')
+                        'química', 'quimica', 'algoritmo', 'programação', 'programacao', 'didática', 'didatica',
+                        'exercício', 'exercicio', 'resolução', 'resolucao', 'resumo da matéria')
         if any(w in t for w in edu_keywords):
             return 'study'
-        gaming_keywords = ('gameplay', 'highlights', 'melhores momentos', 'minecraft', 'roblox', 'meme', 'vlog')
+        gaming_keywords = ('gameplay', 'highlights', 'melhores momentos', 'minecraft', 'roblox', 'meme', 'vlog', 'react')
         if any(w in t for w in gaming_keywords):
             return 'distraction'
         return 'neutral'
-    if any(k in a for k in ('visual studio code', 'code.exe', 'pycharm', 'intellij', 'sublime_text')):
+    if any(k in a for k in ('visual studio code', 'code.exe', 'pycharm', 'intellij', 'sublime_text', 'neovim', 'eclipse')):
         return 'focus'
     return 'neutral'
 
