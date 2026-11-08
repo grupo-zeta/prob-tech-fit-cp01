@@ -7,8 +7,10 @@ $pythonCandidates = @(
 )
 $pythonPath = $pythonCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (-not $pythonPath) {
-  $pythonCommand = Get-Command py.exe -ErrorAction SilentlyContinue
-  if ($pythonCommand) { $pythonPath = $pythonCommand.Source }
+  $cmd = Get-Command python.exe -ErrorAction SilentlyContinue
+  if (-not $cmd) { $cmd = Get-Command py.exe -ErrorAction SilentlyContinue }
+  if (-not $cmd) { $cmd = Get-Command python3.exe -ErrorAction SilentlyContinue }
+  if ($cmd) { $pythonPath = $cmd.Source }
 }
 if (-not $pythonPath) {
   Add-Type -AssemblyName System.Windows.Forms

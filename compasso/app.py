@@ -227,6 +227,16 @@ class Store:
         self.last = time.monotonic()
         self.report_cache=None
         self.context = ContextManager(self,ROOT,Path(path).resolve().parent)
+        self.auto_streak = 0
+        self.active_auto = False
+
+    def get_setting(self, key, default=''):
+        row = self.db.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
+        return row[0] if row else default
+
+    def set_setting(self, key, value):
+        self.db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)', (key, str(value)))
+        self.db.commit()
 
     @staticmethod
     def now():
@@ -241,6 +251,19 @@ class Store:
             counts = {k: max(0, self.live.get(k, 0) - self.previous.get(k, 0)) for k in INPUT_COUNTERS}
             self.previous = self.live.copy()
             if not self.active or self.paused or delta > 3:
+                if not self.active and self.get_setting('auto_tracking', '0') == '1':
+                    cat = self.live_category()
+                    if cat in ('focus', 'study'):
+                        self.auto_streak += delta
+                        if self.auto_streak >= 15:
+                            self.auto_streak = 0
+                            project = '⚡ Auto-Foco · ' + ('Produção & Código' if cat == 'focus' else 'Leitura & Pesquisa')
+                            self.action('start', {'project': project, 'goal': 45, 'auto': True})
+                    else:
+                        self.auto_streak = 0
+                return
+            if self.active_auto and self.live.get('idle', 0) >= 300:
+                self.action('finish', {})
                 return
             cam = self.camera if now - self.camera.get('received', 0) < 4 else {}
             sample = dict(session_id=self.active, ts=self.now(), seconds=delta, app=self.live['app'],
@@ -352,7 +375,7 @@ class Store:
                 self.report_cache=(now,today,self.report())
             return dict(version='4.1.1',token=self.token,active=active,paused=self.paused,elapsed=elapsed,live=self.live,
                 category=self.live_category(),camera={k:v for k,v in self.camera.items() if k!='received'},
-                startup=startup_enabled(), report=self.report_cache[2],context=self.context.status())
+                startup=startup_enabled(), auto_tracking=(self.get_setting('auto_tracking', '0') == '1'), report=self.report_cache[2],context=self.context.status())
 
     def resume_maintenance(self,checkpoint):
         with self.lock:
@@ -379,6 +402,7 @@ class Store:
                 objective=str(data.get('objective','')).strip()[:1500] or project
                 cur = self.db.execute("INSERT INTO sessions(started,project,goal,status,objective,options) VALUES(?,?,?,'active',?,?)", (self.now(), project, goal,objective,json.dumps(options)))
                 self.active, self.paused = cur.lastrowid, False
+                self.active_auto = bool(data.get('auto', False))
                 self.context.on_start(options)
                 self.last = time.monotonic()
                 self.previous = self.monitor.snapshot()
@@ -392,6 +416,11 @@ class Store:
                 if self.active:
                     self.db.execute("UPDATE sessions SET ended=?,status='completed' WHERE id=?", (self.now(),self.active))
                 self.active, self.paused, self.camera = None, False, {}
+                self.active_auto = False
+            elif action == 'auto_tracking':
+                enabled = '1' if data.get('enabled') else '0'
+                self.set_setting('auto_tracking', enabled)
+                self.auto_streak = 0
             elif action == 'classify':
                 category = data.get('category')
                 if category not in CATEGORIES:

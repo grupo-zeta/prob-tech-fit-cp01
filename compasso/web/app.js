@@ -34,6 +34,7 @@ $('category').onpointerdown=()=>{liveClassificationTarget={...state.live};};
 $('category').onfocus=()=>{liveClassificationTarget={...state.live};};
 $('category').onchange=safe(async()=>{const target=liveClassificationTarget||state.live;await api('classify',{scope:'window',app:target.app,title:target.window_title,category:$('category').value});liveClassificationTarget=null;await refresh();});
 $('startup').onchange=safe(async()=>{try{await api('startup',{enabled:$('startup').checked});}catch(e){$('startup').checked=!$('startup').checked;throw e;}});
+$('autoTracking').onchange=safe(async()=>{try{await api('auto_tracking',{enabled:$('autoTracking').checked});}catch(e){$('autoTracking').checked=!$('autoTracking').checked;throw e;}});
 $('pin').onclick=safe(async()=>{pinned=!pinned;await api(pinned?'pin':'unpin');$('pin').textContent=pinned?'♧ Fixado':'♧ Fixo';$('pin').setAttribute('aria-pressed',pinned);});
 $('web').onclick=()=>window.open(location.origin,'_blank','noopener');
 for(const id of ['minimize','tray'])$(id).onclick=safe(async()=>{stopCamera();await api('minimize');});
@@ -50,7 +51,7 @@ async function refresh(){
  $('customGoal').disabled=active;
  if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;notify('Bloco concluído! Considere uma pausa. Você pode continuar ou concluir a sessão.');}
  $('window').textContent=state.live.window_title||state.live.app;$('window').title=`${state.live.app} · ${state.live.window_title||'Sem título'} · ID ${state.live.window_id||'indisponível'}`;
- if(document.activeElement!==$('category'))$('category').value=state.category;$('startup').checked=state.startup;
+ if(document.activeElement!==$('category'))$('category').value=state.category;$('startup').checked=state.startup;if('auto_tracking' in state && document.activeElement !== $('autoTracking'))$('autoTracking').checked=state.auto_tracking;
  $('input').textContent=state.live.hooks?(active?`${state.report.keys} teclas · ${state.report.clicks} cliques · ${state.report.moves||0} movimentos`:'Monitor pronto · sem registrar'):'Contagem de entrada indisponível';
  $('input').title=`${state.report.scroll} eventos de rolagem · ${Math.round(state.report.mouse_distance||0)} px de deslocamento (dia)`;
  $('mouseMetrics').textContent=`Mouse: x ${state.live.mouse_x??'—'}, y ${state.live.mouse_y??'—'} · ${state.report.moves||0} movimentos · ${Math.round(state.report.mouse_distance||0)} px · ${state.report.scroll} rolagens (dia).`;

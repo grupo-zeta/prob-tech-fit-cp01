@@ -263,4 +263,12 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(infer_category('msedge.exe', 'Turma de Algoritmos - classroom.google.com'), 'study')
         self.assertEqual(infer_category('Code.exe', 'app.py - Compasso'), 'focus')
 
+    def test_auto_tracking_triggers_on_sustained_study(self):
+        self.store.set_setting('auto_tracking', '1')
+        self.store.action('classify', {'app': 'editor', 'category': 'focus'})
+        for _ in range(16):
+            self.tick()
+        self.assertIsNotNone(self.store.active)
+        self.assertIn('Auto-Foco', self.store.report()['sessions'][0]['project'])
+
 if __name__=='__main__':unittest.main()
