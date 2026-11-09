@@ -281,4 +281,35 @@ class ContextTests(unittest.TestCase):
         self.assertIsNotNone(self.store.active)
         self.assertIn('Auto-Foco', self.store.report()['sessions'][0]['project'])
 
+    def test_auto_tracking_pauses_on_distraction_and_resumes_on_study(self):
+        self.store.set_setting('auto_tracking', '1')
+        self.store.action('classify', {'app': 'editor', 'category': 'focus'})
+        for _ in range(16):
+            self.tick()
+        self.assertTrue(self.store.active_auto)
+        self.assertFalse(self.store.paused)
+
+        # Distracao sustentada pausa automaticamente
+        self.store.action('classify', {'app': 'editor', 'category': 'distraction'})
+        for _ in range(26):
+            self.tick()
+        self.assertTrue(self.store.paused)
+
+        # Retorno ao estudo retoma automaticamente
+        self.store.action('classify', {'app': 'editor', 'category': 'focus'})
+        for _ in range(11):
+            self.tick()
+        self.assertFalse(self.store.paused)
+
+    def test_auto_tracking_transitions_mode(self):
+        self.store.set_setting('auto_tracking', '1')
+        self.store.action('classify', {'app': 'editor', 'category': 'focus'})
+        for _ in range(16):
+            self.tick()
+        self.store.monitor.app = 'msedge.exe'
+        self.store.monitor.title = 'Aula 04 - Calculo Diferencial e Integral - YouTube'
+        for _ in range(32):
+            self.tick()
+        self.assertIn('Assistir Aula', self.store.auto_mode_name)
+
 if __name__=='__main__':unittest.main()

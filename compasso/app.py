@@ -41,41 +41,66 @@ def window_key(app, title):
     return hashlib.sha256((app+'\0'+title).encode('utf-8')).hexdigest()
 
 
-def infer_category(app, title=''):
-    """Safe contextual heuristics: avoids aggressive assumptions, checks clear indicators."""
+def infer_study_context(app, title=''):
+    """
+    Deduz automaticamente o modo de estudo e os domínios de distração a partir da janela ativa,
+    sem exigir nenhuma marcação manual do estudante.
+    Retorna: (nome_modo, categoria, dominios_bloqueio)
+    """
     a = (app or '').lower()
     t = (title or '').lower()
+    
+    social_distractions = [
+        'tiktok.com', 'instagram.com', 'twitter.com', 'x.com', 
+        'facebook.com', 'web.whatsapp.com', 'discord.com', 
+        'reddit.com', 'netflix.com', 'twitch.tv'
+    ]
+    
     distraction_apps = ('steam', 'epicgames', 'riotclient', 'leagueclient', 'valorant', 'roblox', 'minecraft', 'genshinimpact')
     if any(k in a for k in distraction_apps):
-        return 'distraction'
-    distraction_sites = ('tiktok', 'instagram', 'twitter', 'x.com', 'facebook.com', 'whatsapp', 'discord', 'telegram', 'reddit.com', 'netflix.com')
-    if any(k in a or k in t for k in distraction_sites):
-        return 'distraction'
+        return ('Jogos & Lazer', 'distraction', social_distractions)
+        
+    if any(k in a or k in t for k in ('tiktok', 'instagram', 'twitter', 'x.com', 'facebook', 'whatsapp', 'discord', 'telegram', 'reddit', 'netflix', 'twitch')):
+        return ('Redes Sociais & Feeds', 'distraction', social_distractions)
+        
     if any(k in t for k in ('fatura', 'boleto', 'comprovante', 'recibo', 'nota fiscal', 'extrato', 'pagamento', 'cartao', 'cartão')):
-        return 'neutral'
-    study_portals = ('classroom', 'moodle', 'canvas', 'coursera', 'khanacademy', 'edx', 'scielo', 'arxiv', 'overleaf', 'siga', 'portal do aluno', 'ava.ufrpe')
-    if any(k in a or k in t for k in study_portals):
-        return 'study'
-    if any(k in a for k in ('acrord32', 'acrobat', 'foxitreader', 'sumatrapdf')) or '.pdf' in t:
-        academic_keywords = ('artigo', 'paper', 'livro', 'tcc', 'monografia', 'tese', 'dissertacao', 'dissertação', 'apostila', 'capitulo', 'capítulo', 'aula', 'pesquisa', 'autorregulacao', 'autorregulação')
-        if any(w in t for w in academic_keywords):
-            return 'study'
-    if 'youtube.com' in a or 'youtube' in t or 'twitch.tv' in a or 'twitch' in t:
-        if 'twitch' in a or 'twitch' in t:
-            return 'distraction'
-        edu_keywords = ('aula', 'curso', 'tutorial', 'cálculo', 'calculo', 'introdução', 'introducao',
-                        'seminário', 'seminario', 'palestra', 'teorema', 'física', 'fisica',
-                        'química', 'quimica', 'algoritmo', 'programação', 'programacao', 'didática', 'didatica',
-                        'exercício', 'exercicio', 'resolução', 'resolucao', 'resumo da matéria')
-        if any(w in t for w in edu_keywords):
-            return 'study'
-        gaming_keywords = ('gameplay', 'highlights', 'melhores momentos', 'minecraft', 'roblox', 'meme', 'vlog', 'react')
-        if any(w in t for w in gaming_keywords):
-            return 'distraction'
-        return 'neutral'
-    if any(k in a for k in ('visual studio code', 'code.exe', 'pycharm', 'intellij', 'sublime_text', 'neovim', 'eclipse')):
-        return 'focus'
-    return 'neutral'
+        return ('Pessoal / Financeiro', 'neutral', social_distractions)
+
+    edu_video_keywords = (
+        'aula', 'curso', 'tutorial', 'cálculo', 'calculo', 'introdução', 'introducao',
+        'seminário', 'seminario', 'palestra', 'teorema', 'física', 'fisica',
+        'química', 'quimica', 'algoritmo', 'programação', 'programacao', 'didática', 'didatica',
+        'exercício', 'exercicio', 'resolução', 'resolucao', 'resumo da matéria'
+    )
+    is_video_edu = ('youtube' in a or 'youtube' in t) and any(w in t for w in edu_video_keywords)
+    is_edu_portal = any(k in a or k in t for k in ('classroom', 'moodle', 'canvas', 'coursera', 'khanacademy', 'edx', 'siga', 'portal do aluno', 'ava.ufrpe'))
+    
+    # 1. Modo 🎓 Assistir Aula: Permite YouTube, bloqueia redes sociais
+    if is_video_edu or (is_edu_portal and any(w in t for w in ('aula', 'video', 'gravação', 'gravacao', 'assistir'))):
+        return ('Assistir Aula', 'study', social_distractions)
+        
+    # 2. Modo 📖 Leitura & Pesquisa: Artigos, PDFs, documentações, Overleaf e portais
+    is_pdf = any(k in a for k in ('acrord32', 'acrobat', 'foxitreader', 'sumatrapdf')) or '.pdf' in t
+    academic_keywords = ('artigo', 'paper', 'livro', 'tcc', 'monografia', 'tese', 'dissertacao', 'dissertação', 'apostila', 'capitulo', 'capítulo', 'pesquisa', 'scielo', 'arxiv', 'overleaf', 'autorregulacao', 'autorregulação')
+    if is_pdf or any(w in t for w in academic_keywords) or is_edu_portal:
+        return ('Leitura & Pesquisa', 'study', social_distractions + ['youtube.com'])
+
+    # 3. Modo ✍️ Produção & Código: IDEs, editores, terminais
+    is_coding = any(k in a for k in ('visual studio code', 'code.exe', 'pycharm', 'intellij', 'sublime_text', 'neovim', 'eclipse', 'terminal', 'powershell', 'cmd'))
+    is_writing = any(k in a or k in t for k in ('latex', 'texstudio', 'word', 'docs.google.com', 'notion', 'obsidian'))
+    if is_coding or is_writing:
+        return ('Produção & Código', 'focus', social_distractions + ['youtube.com'])
+        
+    if 'youtube' in a or 'youtube' in t:
+        if any(w in t for w in ('gameplay', 'highlights', 'melhores momentos', 'minecraft', 'roblox', 'meme', 'vlog', 'react')):
+            return ('YouTube Lazer', 'distraction', social_distractions)
+            
+    return ('Ambiente Geral', 'neutral', social_distractions)
+
+
+def infer_category(app, title=''):
+    """Safe contextual heuristics: avoids aggressive assumptions, checks clear indicators."""
+    return infer_study_context(app, title)[1]
 
 
 def number(data, key, low=-180, high=180):
@@ -235,6 +260,9 @@ class Store:
         self.context = ContextManager(self,ROOT,Path(path).resolve().parent)
         self.auto_streak = 0
         self.active_auto = False
+        self.auto_mode_name = ''
+        self.distraction_streak = 0
+        self.mode_transition_streak = 0
 
     def get_setting(self, key, default=''):
         row = self.db.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
@@ -256,21 +284,67 @@ class Store:
             self.live = self.monitor.snapshot()
             counts = {k: max(0, self.live.get(k, 0) - self.previous.get(k, 0)) for k in INPUT_COUNTERS}
             self.previous = self.live.copy()
-            if not self.active or self.paused or delta > 3:
-                if not self.active and self.get_setting('auto_tracking', '0') == '1':
-                    cat = self.live_category()
-                    if cat in ('focus', 'study'):
-                        self.auto_streak += delta
-                        if self.auto_streak >= 15:
-                            self.auto_streak = 0
-                            project = '⚡ Auto-Foco · ' + ('Produção & Código' if cat == 'focus' else 'Leitura & Pesquisa')
-                            self.action('start', {'project': project, 'goal': 45, 'auto': True})
-                    else:
+            auto_enabled = (self.get_setting('auto_tracking', '1') == '1')
+            cat = self.live_category()
+            mode_name, inferred_cat, guard_domains = infer_study_context(self.live['app'], self.live.get('window_title', ''))
+            if not mode_name or mode_name == 'Ambiente Geral':
+                mode_name = 'Produção & Código' if cat == 'focus' else 'Leitura & Pesquisa'
+
+            if not self.active or delta > 3:
+                if auto_enabled and cat in ('focus', 'study'):
+                    self.auto_streak += delta
+                    if self.auto_streak >= 15:
                         self.auto_streak = 0
+                        project = f'⚡ Auto-Foco · {mode_name}'
+                        has_ext = (time.monotonic() - self.context.extension_seen < 25)
+                        self.action('start', {
+                            'project': project,
+                            'goal': 45,
+                            'auto': True,
+                            'mode_name': mode_name,
+                            'guard_enabled': bool(has_ext),
+                            'guard_mode': 'blocklist',
+                            'domains': guard_domains
+                        })
+                else:
+                    self.auto_streak = 0
                 return
-            if self.active_auto and self.live.get('idle', 0) >= 300:
-                self.action('finish', {})
+
+            if self.paused:
+                if self.active_auto and cat in ('focus', 'study'):
+                    self.auto_streak += delta
+                    if self.auto_streak >= 10:
+                        self.auto_streak = 0
+                        self.action('pause', {})
                 return
+
+            if self.active_auto:
+                if self.live.get('idle', 0) >= 300:
+                    self.action('finish', {})
+                    return
+
+                if cat == 'distraction':
+                    self.distraction_streak += delta
+                    if self.distraction_streak >= 25 and not self.paused:
+                        self.action('pause', {})
+                    return
+                else:
+                    self.distraction_streak = 0
+                    if self.paused and cat in ('focus', 'study'):
+                        self.action('pause', {})
+
+                if cat in ('focus', 'study') and mode_name:
+                    if self.auto_mode_name and self.auto_mode_name != mode_name:
+                        self.mode_transition_streak += delta
+                        if self.mode_transition_streak >= 30:
+                            self.mode_transition_streak = 0
+                            self.auto_mode_name = mode_name
+                            new_project = f'⚡ Auto-Foco · {mode_name}'
+                            self.db.execute("UPDATE sessions SET project=? WHERE id=?", (new_project, self.active))
+                            self.db.commit()
+                            self.context.options['domains'] = guard_domains
+                    else:
+                        self.mode_transition_streak = 0
             cam = self.camera if now - self.camera.get('received', 0) < 4 else {}
             sample = dict(session_id=self.active, ts=self.now(), seconds=delta, app=self.live['app'],
                 idle=self.live['idle'], **counts, **{k:cam.get(k) for k in ('face','centered','posture')},
@@ -415,7 +489,7 @@ class Store:
                 self.report_cache=(now,today,self.report())
             return dict(version='4.1.1',token=self.token,active=active,paused=self.paused,elapsed=elapsed,live=self.live,
                 category=self.live_category(),camera={k:v for k,v in self.camera.items() if k!='received'},
-                startup=startup_enabled(), auto_tracking=(self.get_setting('auto_tracking', '0') == '1'), report=self.report_cache[2],context=self.context.status())
+                startup=startup_enabled(), auto_tracking=(self.get_setting('auto_tracking', '1') == '1'), active_auto=bool(self.active_auto), auto_mode=getattr(self, 'auto_mode_name', ''), report=self.report_cache[2],context=self.context.status())
 
     def resume_maintenance(self,checkpoint):
         with self.lock:
@@ -443,6 +517,7 @@ class Store:
                 cur = self.db.execute("INSERT INTO sessions(started,project,goal,status,objective,options) VALUES(?,?,?,'active',?,?)", (self.now(), project, goal,objective,json.dumps(options)))
                 self.active, self.paused = cur.lastrowid, False
                 self.active_auto = bool(data.get('auto', False))
+                self.auto_mode_name = str(data.get('mode_name', ''))
                 self.context.on_start(options)
                 self.last = time.monotonic()
                 self.previous = self.monitor.snapshot()
@@ -457,6 +532,9 @@ class Store:
                     self.db.execute("UPDATE sessions SET ended=?,status='completed' WHERE id=?", (self.now(),self.active))
                 self.active, self.paused, self.camera = None, False, {}
                 self.active_auto = False
+                self.auto_mode_name = ''
+                self.distraction_streak = 0
+                self.mode_transition_streak = 0
             elif action == 'auto_tracking':
                 enabled = '1' if data.get('enabled') else '0'
                 self.set_setting('auto_tracking', enabled)

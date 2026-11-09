@@ -1288,3 +1288,45 @@ dialog .actions {
   font-variant-numeric: tabular-nums;
   opacity: 0.85;
 }
+
+
+/* --- PILOTO AUTOMÁTICO ZERO-FRICÇÃO --- */
+.autopilot-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 209, 231, 0.06);
+  border: 1px solid rgba(0, 209, 231, 0.22);
+  padding: 10px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--cyan);
+  transition: all 0.3s ease;
+}
+
+.autopilot-banner.active {
+  background: rgba(55, 208, 160, 0.08);
+  border-color: rgba(55, 208, 160, 0.35);
+  color: var(--focus);
+}
+
+.autopilot-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan);
+  animation: pulse-dot 2.2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.autopilot-banner.active .autopilot-dot {
+  background: var(--focus);
+  box-shadow: 0 0 10px var(--focus);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
