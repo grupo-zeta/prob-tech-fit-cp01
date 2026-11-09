@@ -74,7 +74,7 @@ prob-tech-fit-cp01/
 Qualquer harness ou pessoa da equipe pode validar a integridade em menos de 3 segundos:
 
 ```powershell
-# 1. Executar a suíte de testes unitários do Python (24 testes)
+# 1. Executar a suíte de testes unitários do Python (26 testes)
 cd compasso
 python -m unittest discover -s tests -v
 
@@ -97,7 +97,12 @@ python app.py --open
 - [x] Reformulação do Frontend para padrão SaaS educacional de alto nível.
 - [x] Os 3 Modos Universais de Estudo (Leitura, Produção e Aula) com método Feynman e Recuperação Ativa.
 - [x] Heurística contextual segura no backend (`infer_category` em `app.py`) separando YouTube de aula vs. gameplay e PDFs de estudo vs. boletos/faturas (100% de taxa de acerto nos testes).
-- [x] **Auto-Tracking Silencioso e Autônomo:** O app monitora em segundo plano e, ao detectar estudo ativo sustentado (>15s), inicia automaticamente o bloco `⚡ Auto-Foco` sem exigir clique manual. 5 minutos de ociosidade encerram o bloco. Toggle disponível na interface (`/api/auto_tracking`).
+- [x] **Ciclo 100% Autônomo sem Marcação Manual (Zero Fricção BJ Fogg):** O aluno NÃO precisa selecionar modo, clicar em iniciar ou marcar nada. O Compasso monitora silenciosamente no Windows:
+  1. *Detecção Automática do Modo:* Identifica se o aluno está assistindo aula no YouTube (`🎓 Assistir Aula`), lendo artigos/PDFs (`📖 Leitura & Pesquisa`) ou programando/escrevendo (`✍️ Produção & Código`).
+  2. *Início Automático:* Ao detectar 15s sustentados de estudo, cria o bloco de foco adaptado com política de bloqueio específica para aquele modo.
+  3. *Transição Fluida:* Se o aluno termina a aula e abre o VS Code para programar, o sistema detecta a transição e atualiza a proteção em tempo real.
+  4. *Pausa e Retomada Inteligente:* Se o aluno desviar para jogos ou redes sociais por mais de 25s, a sessão pausa silenciosamente para não inflar métricas fakes; ao voltar pro estudo, retoma automaticamente.
+  5. *Conclusão por Ausência:* 5 minutos sem teclado/mouse (aluno levantou da cadeira) encerram a sessão e registram o hiperfoco líquido no SQLite.
 - [x] **Correção do CLI / Launcher (`iniciar.ps1`):** Suporte robusto a qualquer distribuição Python no PATH (`python.exe`, `py.exe`, `python3.exe`), corrigindo o erro `Run Failed`.
 - [x] **Modo Eco de Bateria na Câmera (`ecoCamera`):** Amostragem inteligente do MediaPipe (1 a 2 segundos em foco normal vs. 120ms na calibração), poupando até 85% de CPU/bateria em notebooks.
 - [x] **Presets Adaptativos para Extensão Chromium:** No modo "Assistir Aula", o YouTube é liberado para videoaulas e apenas redes sociais são bloqueadas; nos modos de escrita e leitura, YouTube e redes são bloqueados.
