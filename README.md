@@ -1,12 +1,19 @@
 ﻿# Grupo Zeta - Tecnologias na Educação
 
-## Compasso — aplicativo Windows
+## Compasso — Piloto Automático de Foco & Espelho Metacognitivo
 
-[Site do Compasso](site/README.md): apresentação, download, contato e perfil local simples, com fontes React/Vite independentes.
+> **Branch Oficial de Evolução:** `feat/compasso-estudo-ia`  
+> **Fundamentação Pedagógica:** Modelo de Comportamento BJ Fogg ($B=MAP$), Nudge e Autorregulação da Aprendizagem (Zimmerman).  
+> **Guia Completo da Arquitetura e Harness:** Veja [`docs/GUIA_ARQUITETURA_E_HARNESS.md`](docs/GUIA_ARQUITETURA_E_HARNESS.md).
 
-Nova entrega em [compasso/](compasso/README.md): foco, seis sinais locais, relatórios, perfis de estudo, modo contínuo, captura opcional e bloqueio de páginas por extensão. O modo padrão não exige ChatGPT ou conta de IA. Veja [especificação](docs/specs/compasso-4.1.md), [validação e limites](compasso/VALIDACAO.md) e [handoff](docs/handoffs/compasso-2026-10-28.md).
+O Compasso é um companheiro autônomo e privacy-first para o estudante. Em vez de exigir que o aluno configure timers e preencha formulários antes de estudar (fricção cognitiva que causa abandono), o Compasso opera com **Zero Fricção**:
+1. **Dedução Automática de Modo:** Detecta se o aluno está assistindo videoaula no YouTube (`🎓 Assistir Aula`), lendo artigos/PDFs (`📖 Leitura & Pesquisa`) ou programando/escrevendo (`✍️ Produção & Código`).
+2. **Proteção Adaptativa:** Libera o YouTube durante videoaulas e bloqueia redes sociais; ao abrir o VS Code ou editor de texto, passa a proteger contra o YouTube automaticamente.
+3. **Pausa e Retomada Inteligente:** Pausa o foco ao detectar distrações prolongadas (jogos/redes) para não inflar métricas fakes, e retoma sozinho ao voltar ao estudo.
+4. **Ritmo Semanal:** Mostra na UI o histórico de 7 dias com meta visual de 1h diária de hiperfoco (*1h de hiperfoco real > 6h de estudo zumbi*).
+5. **Anti-AI Slop:** 100% dos dados em SQLite local, sem telemetria na nuvem, com copiloto socrático mínimo (2 linhas) quando o aluno empacar.
 
-Os projetos CP01 e VisuTEA abaixo são preservados como trabalhos anteriores. A entrega Compasso não faz diagnóstico de ansiedade, emoção ou TEA.
+Validação: **26 testes unitários em Python** (`python -m unittest discover -s tests -v`) e testes de visão/política em Node 100% aprovados.
 
 
 **Disciplina:** Tecnologias na Educação (Licenciatura em Computação)
