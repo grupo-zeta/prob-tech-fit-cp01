@@ -128,17 +128,21 @@ header{padding:0 2px 10px;margin-bottom:4px}
   grid-column:1;
   grid-row:1;
  }
- body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.context-options{
-  grid-column:1;
-  grid-row:2;
- }
  body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.camera-card{
   grid-column:2;
   grid-row:1;
  }
+ body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.cognitive-twin-card{
+  grid-column:1 / -1;
+  grid-row:2;
+ }
+ body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.context-options{
+  grid-column:1;
+  grid-row:3;
+ }
  body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.signals-card{
   grid-column:2;
-  grid-row:2;
+  grid-row:3;
  }
  body:not(.widget-mode):not([data-layout="stack"]) .camera{
   height:192px;
@@ -177,17 +181,21 @@ header{padding:0 2px 10px;margin-bottom:4px}
  body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card .progress{
   grid-column:1 / -1;
  }
- body:not(.widget-mode)[data-layout="hero"] #focus>.context-options{
+ body:not(.widget-mode)[data-layout="hero"] #focus>.cognitive-twin-card{
   grid-column:1 / -1;
   grid-row:2;
  }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.context-options{
+  grid-column:1 / -1;
+  grid-row:3;
+ }
  body:not(.widget-mode)[data-layout="hero"] #focus>.camera-card{
   grid-column:1;
-  grid-row:3;
+  grid-row:4;
  }
  body:not(.widget-mode)[data-layout="hero"] #focus>.signals-card{
   grid-column:2;
-  grid-row:3;
+  grid-row:4;
  }
 }
 /* Windows 7 Desktop Clock Gadget Mode */
@@ -1201,4 +1209,116 @@ body.auth-active > main {
  background: #262c37;
  border-color: #343b48;
  color: #ffffff;
+}
+
+/* ==========================================================================
+   MENTOR PREDITIVO & GÊMEO COGNITIVO (JITAI + MICRO-ENSINO METACOGNITIVO)
+   ========================================================================== */
+.cognitive-twin-card {
+ border-color: #343b48;
+ background: linear-gradient(180deg, #171b22 0%, #13171e 100%);
+}
+
+.twin-header-actions {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+}
+
+.twin-header-actions button {
+ margin-bottom: 0;
+ min-height: 24px;
+ padding: 3px 9px;
+ font-size: 10.5px;
+}
+
+.twin-learned-grid {
+ display: grid;
+ grid-template-columns: repeat(3, 1fr);
+ gap: 8px;
+ margin: 8px 0 10px;
+}
+
+@media (max-width: 600px) {
+ .twin-learned-grid {
+  grid-template-columns: 1fr;
+ }
+}
+
+.twin-stat-box {
+ background: #11141a;
+ border: 1px solid var(--line);
+ border-radius: 8px;
+ padding: 9px 11px;
+ display: flex;
+ flex-direction: column;
+ gap: 2px;
+}
+
+.twin-stat-box small {
+ font-size: 9.5px;
+ color: var(--muted);
+ font-weight: 600;
+ letter-spacing: 0.4px;
+}
+
+.twin-stat-box strong {
+ font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+ font-size: 17px;
+ font-weight: 700;
+ color: var(--text);
+}
+
+.twin-lesson-box {
+ background: rgba(249, 115, 22, 0.06);
+ border: 1px solid rgba(249, 115, 22, 0.28);
+ border-radius: 8px;
+ padding: 10px 12px;
+}
+
+.twin-lesson-top {
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ flex-wrap: wrap;
+ margin-bottom: 5px;
+}
+
+.twin-lesson-tag {
+ background: rgba(249, 115, 22, 0.16);
+ border: 1px solid rgba(249, 115, 22, 0.4);
+ color: #fb923c;
+ font-size: 9px;
+ font-weight: 700;
+ padding: 2px 6px;
+ border-radius: 4px;
+ letter-spacing: 0.4px;
+}
+
+.twin-lesson-top b {
+ font-size: 12px;
+ color: #ffffff;
+}
+
+.twin-lesson-box p {
+ margin: 4px 0 8px;
+ font-size: 11.5px;
+ color: #d5d9e0;
+ line-height: 1.48;
+}
+
+.twin-lesson-footer {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ gap: 10px;
+ flex-wrap: wrap;
+ border-top: 1px solid rgba(255, 255, 255, 0.06);
+ padding-top: 8px;
+}
+
+.twin-lesson-footer button.compact {
+ min-height: 27px;
+ padding: 4px 11px;
+ font-size: 11px;
 }

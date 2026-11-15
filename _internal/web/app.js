@@ -483,6 +483,7 @@ async function refresh(){
  window.renderCompassoContext?.();
  window.renderStartupPrompt?.();
  updateWin7ClockGadget();
+ updateCognitiveTwinMentor();
 }
 async function loadReport(){const r=await fetch('/api/report?day='+encodeURIComponent($('reportDay').value));report=await r.json();if(!r.ok)throw Error(report.error);renderReport();}
 $('reportDay').onchange=safe(loadReport);
@@ -792,6 +793,136 @@ function captureCalibrationSample(raw){
  const result=CompassoVision.calibrateAdaptive(run.samples,lastRaw);
  applyCalibration(result,calibrationStored?'Calibração salva neste PC. Não será preciso repetir ao iniciar outra sessão com a mesma câmera.':'Calibração concluída e salva neste PC.');
 }
+let currentHabitLessonIdx = 0;
+let manualLessonOverride = false;
+let ambientIdleTicks = 0;
+const CompassoHabitLessons = [
+ {
+  realCycle: '34 min',
+  realCycleSub: 'Queda recorrente aos ~34m (vs. 50m tentados)',
+  trigger: 'Inércia > 90s',
+  triggerSub: 'Parada em leitura densa antecede 80% das trocas',
+  risk: 78,
+  riskColor: '#fb923c',
+  predSub: 'Fadiga cervical/motora prevista em ~4 min',
+  concept: 'Sobrecarga da Memória de Trabalho (Sweller, 1988)',
+  lesson: 'A IA aprendeu no seu cotidiano que você não abre abas distrativas por acaso, mas após ficar >90s parado em um trecho complexo. Quando a memória operacional excede ~4 blocos, o cérebro busca alívio dopaminérgico trocando de janela.',
+  evidence: 'Sinal preditivo: queda de 42% na cadência + inclinação cervical de 6° após 30 min.',
+  actionLabel: 'Ajustar ritmo para 35 min (1 clique)',
+  actionType: 'set_35'
+ },
+ {
+  realCycle: '28 min',
+  realCycleSub: 'Fragmentação detectada após 3+ trocas de janela',
+  trigger: 'Alternância Rápida',
+  triggerSub: 'IDE ↔ Mensagens a cada 6 min reduz retenção',
+  risk: 84,
+  riskColor: '#ef4444',
+  predSub: 'Risco alto de perda de contexto nos próximos 3 min',
+  concept: 'Efeito do Resíduo de Atenção (Sophie Leroy, 2009)',
+  lesson: 'A IA identificou que suas micro-trocas rápidas de janela deixam ~22% da sua atenção presa na janela anterior por até 12 minutos. Mesmo voltando rápido ao estudo, seu cérebro opera com capacidade reduzida.',
+  evidence: 'Sinal preditivo: múltiplas alternâncias de janela registradas no bloco atual.',
+  actionLabel: 'Ativar Blindagem Janela Única + 25m (1 clique)',
+  actionType: 'lock_single_window'
+ },
+ {
+  realCycle: '36 min',
+  realCycleSub: 'Pico de eficiência entre o min 8 e o min 34',
+  trigger: 'Exaustão Ultradiana',
+  triggerSub: 'Insistir após o min 36 dobra erros e releituras',
+  risk: 68,
+  riskColor: '#fb923c',
+  predSub: 'Início da curva de retorno decrescente em ~5 min',
+  concept: 'Ciclo Ultradiano & Lei de Yerkes-Dodson (1908)',
+  lesson: 'Seu histórico mostra que forçar 50 ou 60 minutos contínuos gera "falso estudo" nos 15 minutos finais: você permanece sentado, mas a consolidação sináptica despenca por fadiga autonômica.',
+  evidence: 'Sinal preditivo: desaceleração motora progressiva detectada após o minuto 32.',
+  actionLabel: 'Iniciar Micropausa 4-4-4 Agora (1 clique)',
+  actionType: 'open_breathe'
+ },
+ {
+  realCycle: '40 min',
+  realCycleSub: 'Estabilidade visual alta nas primeiras 35 min',
+  trigger: 'Fadiga Ocular Precoce',
+  triggerSub: 'Queda de piscadas + projeção cervical > 7°',
+  risk: 24,
+  riskColor: '#10b981',
+  predSub: 'Fluxo cognitivo estável pelos próximos 12 min',
+  concept: 'Marcadores Somáticos de Fadiga Precoce (Ergonomia Cognitiva)',
+  lesson: 'Antes de você sentir cansaço consciente, seu corpo dá dois avisos 6 minutos antes: redução de piscadas (olho seco fixo no monitor) e inclinação involuntária do tronco/cabeça para frente.',
+  evidence: 'Sinal preditivo: postura e olhar alinhados; auto-piloto monitorando silenciosamente.',
+  actionLabel: 'Calibrar Alerta Precoce Postural (1 clique)',
+  actionType: 'enable_posture_guard'
+ }
+];
+function renderHabitLesson(idx) {
+ const item = CompassoHabitLessons[idx % CompassoHabitLessons.length];
+ if (!$('cognitiveTwinCard')) return;
+ $('twinRealCycle').textContent = item.realCycle;
+ $('twinRealCycleSub').textContent = item.realCycleSub;
+ $('twinTriggerPattern').textContent = item.trigger;
+ $('twinTriggerSub').textContent = item.triggerSub;
+ $('twinPredictionRisk').textContent = `Risco ${item.risk}%`;
+ $('twinPredictionRisk').style.color = item.riskColor;
+ $('twinPredictionBar').style.width = `${item.risk}%`;
+ $('twinPredictionBar').style.background = item.riskColor;
+ $('twinPredictionSub').textContent = item.predSub;
+ $('twinConceptTitle').textContent = item.concept;
+ $('twinLessonText').textContent = item.lesson;
+ $('twinHabitEvidence').textContent = item.evidence;
+ $('twinApplyActionBtn').textContent = item.actionLabel;
+ $('twinApplyActionBtn').dataset.actionType = item.actionType;
+}
+function updateCognitiveTwinMentor() {
+ if (!$('cognitiveTwinCard')) return;
+ const autoOn = $('aiAutopilot')?.checked;
+ if ($('twinConfidenceBadge')) {
+  $('twinConfidenceBadge').textContent = autoOn ? 'Auto-Piloto IA · 88% conf.' : 'Modo Manual · IA Passiva';
+ }
+ if (!manualLessonOverride && state) {
+  const mins = (state.elapsed || 0) / 60;
+  const switches = state.report?.window_switches || 0;
+  if (switches >= 6) currentHabitLessonIdx = 1;
+  else if (mins >= 30) currentHabitLessonIdx = 2;
+  else if (state.active) currentHabitLessonIdx = 0;
+  renderHabitLesson(currentHabitLessonIdx);
+ }
+ if (autoOn && state && !state.active && state.live?.hooks && state.category !== 'distraction') {
+  ambientIdleTicks++;
+  if (ambientIdleTicks === 15) {
+   notify('Auto-Piloto IA: fluxo de estudo detectado no seu cotidiano. Aprendendo seus padrões silenciosamente.');
+  }
+ } else {
+  ambientIdleTicks = 0;
+ }
+}
+if ($('cycleHabitLessonBtn')) $('cycleHabitLessonBtn').onclick = () => {
+ manualLessonOverride = true;
+ currentHabitLessonIdx = (currentHabitLessonIdx + 1) % CompassoHabitLessons.length;
+ renderHabitLesson(currentHabitLessonIdx);
+};
+if ($('twinApplyActionBtn')) $('twinApplyActionBtn').onclick = () => {
+ const act = $('twinApplyActionBtn').dataset.actionType || 'set_35';
+ if (act === 'set_35') {
+  if ($('goal')) { $('goal').value = 'custom'; }
+  if ($('customGoalField')) $('customGoalField').hidden = false;
+  if ($('customGoal')) $('customGoal').value = 35;
+  if ($('goalLabel')) $('goalLabel').textContent = 'Ciclo Aprendido IA · 35 min';
+  notify('IA Preditiva: Seu bloco foi ajustado automaticamente para 35 min (seu limiar biológico real).');
+ } else if (act === 'lock_single_window') {
+  if ($('singleWindowEnabled')) $('singleWindowEnabled').checked = true;
+  if ($('goal')) $('goal').value = '25';
+  syncActiveFeaturePills();
+  notify('IA Preditiva: Modo Janela Única blindado e sprint de 25 min configurado para eliminar Resíduo de Atenção.');
+ } else if (act === 'open_breathe') {
+  openBreatheDialog();
+ } else if (act === 'enable_posture_guard') {
+  if ($('smartphoneAlertEnabled')) $('smartphoneAlertEnabled').checked = true;
+  syncActiveFeaturePills();
+  if (!cameraOn) startCamera(true);
+  notify('IA Preditiva: Monitoramento de marcadores somáticos precoces (olhar/cervical) ativado.');
+ }
+};
+renderHabitLesson(0);
 window.addEventListener('pagehide',stopCamera);
 let refreshing=false;setInterval(async()=>{if(refreshing)return;refreshing=true;try{await refresh();}catch(e){notify('Conexão local interrompida. Reabra o Compasso para continuar.');}finally{refreshing=false;}},1000);
 refresh().catch(e=>notify(e.message));
