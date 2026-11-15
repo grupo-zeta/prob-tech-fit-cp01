@@ -5,9 +5,68 @@
 <link rel="icon" type="image/svg+xml" href="brand.svg">
 <link rel="stylesheet" href="style.css">
 <script defer src="mediapipe/holistic.js"></script><script defer src="vendor/jspdf.umd.min.js"></script><script defer src="vision.js"></script><script defer src="calibration-store.js"></script><script defer src="presets.js"></script><script defer src="app.js"></script><script defer src="context.js"></script><script defer src="profiles.js"></script>
-<body>
+<body class="auth-active">
+<section id="authScreen" class="auth-screen" aria-label="Acesso ao Compasso">
+<div class="auth-container">
+<div class="auth-showcase">
+<div class="auth-brand-header">
+<img src="brand.svg" class="auth-logo" alt="C com órbitas, marca Compasso">
+<div>
+<b class="auth-brand-name">compasso<span class="dot">.</span></b>
+<small class="auth-tagline">foco no seu ritmo</small>
+</div>
+<span class="version">4.2 STUDIO</span>
+</div>
+<h1 class="auth-headline">Seu espaço de foco, ritmo e equilíbrio.</h1>
+<p class="auth-subtitle">Acompanhamento inteligente com visão computacional e predição de fadiga — 100% processado localmente no seu computador.</p>
+<div class="auth-features">
+<div class="auth-feature">
+<span class="auth-feat-icon" aria-hidden="true">◉</span>
+<div><b>Visão MediaPipe Local</b><small>Postura, direção do olhar e piscadas sem gravar vídeo.</small></div>
+</div>
+<div class="auth-feature">
+<span class="auth-feat-icon" aria-hidden="true">✦</span>
+<div><b>Motor Preditivo de Fadiga</b><small>Curva de atenção, risco de dispersão e pausa adaptativa.</small></div>
+</div>
+<div class="auth-feature">
+<span class="auth-feat-icon" aria-hidden="true">●</span>
+<div><b>Tudo Ativo por Padrão</b><small>Câmera, capturas de contexto e proteção web prontos ao entrar.</small></div>
+</div>
+</div>
+</div>
+<div class="auth-card">
+<div class="auth-tabs" role="tablist">
+<button type="button" class="auth-tab active" data-auth-tab="login">Entrar na Conta</button>
+<button type="button" class="auth-tab" data-auth-tab="register">Criar Perfil</button>
+</div>
+<form id="authForm" class="auth-form" autocomplete="on">
+<label id="authNameWrap" class="auth-field" hidden>
+<span>Como quer ser chamado(a)?</span>
+<input id="authName" type="text" maxlength="60" placeholder="Ex.: Igor Santos">
+</label>
+<label class="auth-field">
+<span>E-mail ou ID de Usuário</span>
+<input id="authEmail" type="text" maxlength="100" placeholder="voce@compasso.local" required>
+</label>
+<label class="auth-field">
+<span>Senha de Acesso</span>
+<input id="authPassword" type="password" maxlength="80" placeholder="••••••••" required>
+</label>
+<div class="auth-options-row">
+<label class="auth-remember"><input id="authRemember" type="checkbox" checked> <span>Manter conectado neste PC</span></label>
+<button type="button" id="authDemoFill" class="auth-demo-btn">Preencher demo</button>
+</div>
+<p id="authError" class="auth-error" hidden></p>
+<button type="submit" id="authSubmit" class="primary auth-submit">▶ Entrar no Compasso</button>
+<div class="auth-divider"><span>ou acesse diretamente</span></div>
+<button type="button" id="authQuick" class="auth-quick-btn">⚡ Acesso Rápido Local (Sem Senha)</button>
+</form>
+<p class="auth-privacy-note">🔒 Credenciais e histórico de foco ficam salvos exclusivamente neste dispositivo.</p>
+</div>
+</div>
+</section>
 <main>
-<header><div class="brand"><img class="logo" src="brand.svg" alt="C com órbitas, marca Compasso"><div><b>compasso<span class="dot">.</span></b><small class="tagline">foco no seu ritmo</small></div><span class="version">4.2</span></div><div class="window"><div class="window-modes"><button id="widgetToggle" class="mode-btn" title="Modo Widget (Relógio compacto)">⏱ Relógio</button><button id="openTutorial" class="mode-btn" title="Ver tutorial passo a passo">? Tutorial</button></div><div class="window-chrome"><button id="pin" title="Manter sobre outras janelas">♧ Fixo</button><button id="web" title="Abrir no navegador">▣ Web</button><button id="minimize" title="Minimizar para a bandeja">−</button></div></div></header>
+<header><div class="brand"><img class="logo" src="brand.svg" alt="C com órbitas, marca Compasso"><div><b>compasso<span class="dot">.</span></b><small class="tagline">foco no seu ritmo</small></div><span class="version">4.2</span></div><div class="window"><div class="window-modes"><button id="widgetToggle" class="mode-btn" title="Modo Widget (Relógio compacto)"><svg class="btn-svg" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.6"/><path d="M10 6.8v3.9l2.6 1.6M7.8 2.2h4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span id="widgetToggleLabel">Relógio</span></button><button id="openTutorial" class="mode-btn" title="Guia de Ritmo e Tutorial Passo a Passo"><svg class="btn-svg compass-svg" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5" opacity=".85"/><ellipse cx="10" cy="10" rx="8.8" ry="3.2" transform="rotate(-36 10 10)" stroke="#ffad72" stroke-width="1.15" opacity=".85"/><polygon points="13.6,6.4 11.1,11.1 6.4,13.6 8.9,8.9" fill="currentColor"/><circle cx="10" cy="10" r="1.3" fill="#ffad72"/></svg><span>Guia</span></button><button id="logoutBtn" class="mode-btn user-mode-btn" title="Trocar perfil ou voltar à tela de login"><svg class="btn-svg" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="7" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 16.2c1.1-2.5 3.1-3.8 5.5-3.8s4.4 1.3 5.5 3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span id="userBadgeName">Perfil</span></button></div><div class="window-chrome"><button id="pin" title="Manter sobre outras janelas">♧ Fixo</button><button id="web" title="Abrir no navegador">▣ Web</button><button id="minimize" title="Minimizar para a bandeja">−</button></div></div></header>
 <nav aria-label="Seções"><button class="selected" data-tab="focus">▣ 1. Foco</button><button data-tab="report">◷ 2. Relatório</button><button data-tab="insights">✦ 3. I.A. Preditiva</button></nav>
 <div id="notice" role="status" hidden></div>
 <section id="focus" class="page">
@@ -46,7 +105,7 @@
 <dialog id="capturePreview"><h2>CAPTURA LOCAL</h2><img id="capturePreviewImage" alt="Captura autorizada"><button id="closeCapturePreview">Fechar</button></dialog>
 <dialog id="startupDialog"><img src="brand.svg" class="startup-logo" alt=""><h2>QUAL É O SEU FOCO DE HOJE?</h2><p>O Compasso já está disponível. Escolha um perfil para começar o acompanhamento.</p><label class="field-label">Perfil <select id="startupProject"></select></label><label class="field-label">Duração <select id="startupDuration"><option value="25">25 minutos</option><option value="30">30 minutos</option><option value="40">40 minutos</option><option value="45">45 minutos</option><option value="50" selected>50 minutos</option><option value="90">90 minutos</option><option value="1440">24 horas</option><option value="custom">Personalizar</option><option value="continuous">Contínuo / 24h</option></select></label><label id="startupCustomField" class="field-label" hidden>Minutos <input id="startupCustom" type="number" min="1" max="1440" value="50"></label><label class="option-toggle"><input id="startupCamera" type="checkbox" checked><span>Ativar a câmera ao começar</span></label><label class="option-toggle"><input id="showStartupPrompt" type="checkbox" checked><span>Mostrar esta seleção quando o Windows iniciar</span></label><p class="muted tiny">A câmera e os registros só começam ao confirmar o foco. Capturas de tela e IA automática continuam desligadas até autorização própria.</p><div class="actions"><button id="startupLater">Escolher depois</button><button class="primary" id="startupBegin">Iniciar meu foco</button></div></dialog>
 <dialog id="tutorialDialog" class="tutorial-dialog" aria-labelledby="tutorialTitle">
-<div class="tutorial-header"><h2 id="tutorialTitle">🧭 Guia Passo a Passo · Compasso</h2><button class="tutorial-close" id="closeTutorial" type="button" aria-label="Fechar tutorial">✕</button></div>
+<div class="tutorial-header"><h2 id="tutorialTitle"><img src="brand.svg" class="tutorial-brand-icon" alt=""> Guia Passo a Passo · Compasso</h2><button class="tutorial-close" id="closeTutorial" type="button" aria-label="Fechar tutorial">✕</button></div>
 <div class="tutorial-step-dots"><span class="tutorial-dot active"></span><span class="tutorial-dot"></span><span class="tutorial-dot"></span><span class="tutorial-dot"></span></div>
 <div class="tutorial-slide active" data-step="0">
 <h3>1. Definir seu Bloco de Foco</h3>

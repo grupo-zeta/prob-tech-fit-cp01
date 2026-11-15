@@ -69,8 +69,9 @@ document.addEventListener('click', e => {
 function toggleWidgetMode() {
  isWidgetMode = !isWidgetMode;
  document.body.classList.toggle('widget-mode', isWidgetMode);
- const btn = $('widgetToggle');
- if (btn) btn.textContent = isWidgetMode ? '\u2922 Expandir' : '\u23F1 Rel\u00F3gio';
+ const lbl = $('widgetToggleLabel');
+ if (lbl) lbl.textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
+ else if ($('widgetToggle')) $('widgetToggle').textContent = isWidgetMode ? '\u2922 Expandir' : '\u23F1 Rel\u00F3gio';
  try {
   if (window.screen && screen.availWidth) {
    if (isWidgetMode) {
@@ -114,9 +115,74 @@ if ($('tutorialNext')) $('tutorialNext').onclick = () => {
   showTutorialStep(tutorialStep + 1);
  }
 };
-if (!localStorage.getItem('compasso.tutorialSeen')) {
- setTimeout(openTutorial, 600);
+
+let authMode = 'login';
+function setAuthTab(mode) {
+ authMode = mode === 'register' ? 'register' : 'login';
+ document.querySelectorAll('.auth-tab').forEach(t => {
+  t.classList.toggle('active', t.dataset.authTab === authMode);
+ });
+ if ($('authNameWrap')) $('authNameWrap').hidden = (authMode !== 'register');
+ if ($('authSubmit')) {
+  $('authSubmit').textContent = authMode === 'register' ? '\u2726 Criar Perfil e Entrar' : '\u25B6 Entrar no Compasso';
+ }
+ if ($('authError')) $('authError').hidden = true;
 }
+document.querySelectorAll('.auth-tab').forEach(btn => {
+ btn.onclick = () => setAuthTab(btn.dataset.authTab);
+});
+function enterCompassoApp(user) {
+ const displayName = (user?.name || user?.email?.split('@')[0] || 'Voc\u00EA').trim();
+ const shortName = displayName.split(/\s+/)[0] || 'Perfil';
+ if ($('userBadgeName')) $('userBadgeName').textContent = shortName;
+ if ($('logoutBtn')) $('logoutBtn').title = `Conectado como ${displayName} \u00B7 Clique para voltar ao Login`;
+ document.body.classList.remove('auth-active');
+ centerCompassoWindow();
+ if (!localStorage.getItem('compasso.tutorialSeen')) {
+  setTimeout(openTutorial, 450);
+ }
+}
+try {
+ const savedUserRaw = localStorage.getItem('compasso.authUser');
+ if (savedUserRaw) {
+  const savedUser = JSON.parse(savedUserRaw);
+  if ($('authEmail') && savedUser.email) $('authEmail').value = savedUser.email;
+  if ($('authName') && savedUser.name) $('authName').value = savedUser.name;
+ }
+} catch(_) {}
+if ($('authDemoFill')) $('authDemoFill').onclick = () => {
+ if ($('authName')) $('authName').value = 'Igor Santos';
+ if ($('authEmail')) $('authEmail').value = 'igor@compasso.studio';
+ if ($('authPassword')) $('authPassword').value = 'compasso42';
+};
+if ($('authQuick')) $('authQuick').onclick = () => {
+ const user = { name: $('authName')?.value?.trim() || 'Igor Santos', email: $('authEmail')?.value?.trim() || 'local@compasso.studio' };
+ try { localStorage.setItem('compasso.authUser', JSON.stringify(user)); } catch(_) {}
+ enterCompassoApp(user);
+};
+if ($('authForm')) $('authForm').onsubmit = e => {
+ e.preventDefault();
+ const email = $('authEmail')?.value?.trim() || '';
+ const pass = $('authPassword')?.value || '';
+ const name = $('authName')?.value?.trim() || email.split('@')[0] || 'Usu\u00E1rio';
+ if (!email || pass.length < 3) {
+  if ($('authError')) {
+   $('authError').textContent = 'Informe seu e-mail/usu\u00E1rio e uma senha de pelo menos 3 caracteres (ou use o Acesso R\u00E1pido).';
+   $('authError').hidden = false;
+  }
+  return;
+ }
+ const user = { name, email, remember: !!$('authRemember')?.checked };
+ try {
+  if (user.remember) localStorage.setItem('compasso.authUser', JSON.stringify(user));
+  else localStorage.removeItem('compasso.authUser');
+ } catch(_) {}
+ enterCompassoApp(user);
+};
+if ($('logoutBtn')) $('logoutBtn').onclick = () => {
+ if (isWidgetMode) toggleWidgetMode();
+ document.body.classList.add('auth-active');
+};
 const colors={focus:'#37d0a0',study:'#6378ff',neutral:'#a37be4',distraction:'#f56978',mixed:'#b6a8d0'};
 const labels={focus:'Foco',study:'Leitura',neutral:'Neutro',distraction:'Distração',mixed:'Misto'};
 let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, videoVisible=true, cameraGeneration=0;
