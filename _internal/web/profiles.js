@@ -2,7 +2,7 @@
 let startupPromptConsidered=false;
 $('cameraAuto').checked=saved('compasso.cameraAuto',true);
 $('cameraAuto').onchange=()=>localStorage.setItem('compasso.cameraAuto',JSON.stringify($('cameraAuto').checked));
-$('startupPromptEnabled').checked=saved('compasso.startupPrompt',true);
+$('startupPromptEnabled').checked=saved('compasso.startupPrompt',false);
 $('startupPromptEnabled').onchange=()=>localStorage.setItem('compasso.startupPrompt',JSON.stringify($('startupPromptEnabled').checked));
 window.setCompassoGoal=minutes=>{
  const value=minutes===0?'continuous':String(minutes);
@@ -23,9 +23,9 @@ $('startupDuration').onchange=()=>{$('startupCustomField').hidden=$('startupDura
 $('startupProject').onchange=()=>{const p=CompassoPresets.find($('startupProject').value);if(p){$('startupDuration').value=p.minutes===0?'continuous':String(p.minutes);$('startupCustomField').hidden=true;}};
 window.renderStartupPrompt=()=>{
  if(startupPromptConsidered||!state)return;startupPromptConsidered=true;
- if(!new URLSearchParams(location.search).has('startup')||!saved('compasso.startupPrompt',true)||state.active)return;
+ if(!new URLSearchParams(location.search).has('startup')||!saved('compasso.startupPrompt',false)||state.active)return;
  $('startupProject').replaceChildren(...[...$('project').options].map(o=>new Option(o.textContent,o.value)));
- $('startupCamera').checked=$('cameraAuto').checked;$('showStartupPrompt').checked=true;$('startupDialog').showModal();
+ $('startupCamera').checked=$('cameraAuto').checked;$('showStartupPrompt').checked=false;$('startupDialog').showModal();
 };
 function storeStartupChoice(){$('startupPromptEnabled').checked=$('showStartupPrompt').checked;localStorage.setItem('compasso.startupPrompt',JSON.stringify($('showStartupPrompt').checked));}
 $('startupLater').onclick=safe(async()=>{storeStartupChoice();$('startupDialog').close();await api('minimize');});

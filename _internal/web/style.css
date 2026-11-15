@@ -1322,3 +1322,95 @@ body.auth-active > main {
  padding: 4px 11px;
  font-size: 11px;
 }
+
+/* J.A.R.V.I.S. Continuous Copilot Briefing & Two-Way Street */
+.jarvis-briefing-box {
+ background: #11141a;
+ border: 1px solid #2b3342;
+ border-left: 3px solid #10b981;
+ border-radius: 8px;
+ padding: 10px 12px;
+ margin-bottom: 10px;
+}
+
+.jarvis-briefing-head {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ gap: 8px;
+ flex-wrap: wrap;
+ margin-bottom: 5px;
+}
+
+.jarvis-briefing-head b {
+ font-size: 12px;
+ color: #34d399;
+ flex: 1;
+}
+
+.jarvis-live-dot {
+ width: 8px;
+ height: 8px;
+ border-radius: 50%;
+ background: #10b981;
+ box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+ flex-shrink: 0;
+}
+
+.jarvis-briefing-box p {
+ margin: 4px 0 9px;
+ font-size: 11.5px;
+ color: #e5e7eb;
+ line-height: 1.5;
+}
+
+.jarvis-two-way-bar {
+ border-top: 1px solid var(--line);
+ padding-top: 8px;
+ display: flex;
+ flex-direction: column;
+ gap: 7px;
+}
+
+.jarvis-context-chips {
+ display: flex;
+ flex-wrap: wrap;
+ gap: 5px;
+}
+
+.jarvis-chip {
+ min-height: 24px;
+ padding: 3px 9px;
+ font-size: 10.5px;
+ border-radius: 999px;
+ background: #171b22;
+ border: 1px solid var(--line);
+ color: var(--muted);
+ font-weight: 500;
+}
+
+.jarvis-chip:hover,
+.jarvis-chip.active {
+ background: rgba(249, 115, 22, 0.14);
+ border-color: rgba(249, 115, 22, 0.45);
+ color: #fb923c;
+}
+
+.jarvis-chat-form {
+ display: flex;
+ gap: 6px;
+}
+
+.jarvis-chat-form input {
+ flex: 1;
+ min-height: 29px;
+ padding: 4px 10px;
+ font-size: 11px;
+ background: #171b22;
+}
+
+.jarvis-chat-form button.compact {
+ min-height: 29px;
+ padding: 4px 12px;
+ font-size: 11px;
+}

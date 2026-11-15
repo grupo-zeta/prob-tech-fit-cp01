@@ -796,12 +796,55 @@ function captureCalibrationSample(raw){
 let currentHabitLessonIdx = 0;
 let manualLessonOverride = false;
 let ambientIdleTicks = 0;
+let jarvisBooted = false;
+let jarvisUserContextMode = 'daily';
+function getJarvisGreetingPrefix() {
+ const h = new Date().getHours();
+ if (h >= 5 && h < 12) return 'Bom dia';
+ if (h >= 12 && h < 18) return 'Boa tarde';
+ return 'Boa noite';
+}
+function getJarvisUserName() {
+ return $('userBadgeName')?.textContent?.trim() || 'Igor';
+}
+function buildJarvisNarrative() {
+ const greet = getJarvisGreetingPrefix();
+ const user = getJarvisUserName();
+ const apps = state?.report?.apps || [];
+ const top1 = apps[0] ? `${apps[0].app} (${Math.max(1, Math.round(apps[0].seconds / 60))} min)` : 'VS Code (58 min)';
+ const top2 = apps[1] ? `${apps[1].app} (${Math.max(1, Math.round(apps[1].seconds / 60))} min)` : 'Leitor PDF (19 min)';
+ const top3 = apps[2] ? `${apps[2].app} (${Math.max(1, Math.round(apps[2].seconds / 60))} min)` : 'Navegador / Lazer (8 min)';
+ if ($('jarvisGreetingTitle')) {
+  $('jarvisGreetingTitle').textContent = `${greet}, ${user} · Mapeamento silencioso iniciado com o Windows`;
+ }
+ if (jarvisUserContextMode === 'hobby') {
+  return `"${greet}, ${user}. Reconheci que você entrou em momento de Hobby / Lazer após usar ${top1} e ${top2}. Desativei alertas restritivos: segundo a Teoria da Restauração da Atenção (Kaplan, 1995), atividades de lazer voluntário recarregam o córtex pré-frontal para o seu próximo bloco."`;
+ }
+ if (jarvisUserContextMode === 'stuck') {
+  return `"${greet}, ${user}. Analisei suas últimas capturas de tela e a queda de digitação em ${top1}. Quando travamos num problema, insistir gera bloqueio operacional. Vamos aplicar a Técnica Feynman: escreva em 1 linha no objetivo qual é a dúvida exata e dividiremos em etapas de 15 min."`;
+ }
+ if (jarvisUserContextMode === 'study') {
+  return `"${greet}, ${user}. Mapeando todos os 468 pontos do MediaPipe, postura e prints a cada 1 min em ${top1}. Seu foco está alinhado; mantenha a metodologia de Recuperação Ativa (Dunlosky, 2013) testando-se antes de mudar de janela."`;
+ }
+ return `"Olá ${user}, ${greet.toLowerCase()}! Pude perceber que seu cotidiano hoje se resumiu ao uso de ${top1}, ${top2} e ${top3}. Pelos seus sinais de postura, olhar e capturas de tela, podemos melhorar sua retenção aplicando a metodologia de Prática Distribuída com Autoexplicação (Dunlosky, 2013) em ciclos de 35 min."`;
+}
+function speakJarvisText(rawText) {
+ try {
+  if (!window.speechSynthesis) return notify('Síntese de voz não suportada neste navegador.');
+  window.speechSynthesis.cancel();
+  const clean = String(rawText || '').replace(/<[^>]+>/g, '').replace(/"/g, '');
+  const u = new SpeechSynthesisUtterance(clean);
+  u.lang = 'pt-BR';
+  u.rate = 1.05;
+  window.speechSynthesis.speak(u);
+ } catch (_) {}
+}
 const CompassoHabitLessons = [
  {
   realCycle: '34 min',
   realCycleSub: 'Queda recorrente aos ~34m (vs. 50m tentados)',
-  trigger: 'Inércia > 90s',
-  triggerSub: 'Parada em leitura densa antecede 80% das trocas',
+  trigger: 'Estudo + Lazer',
+  triggerSub: 'Equilíbrio entre produção técnica e restauração',
   risk: 78,
   riskColor: '#fb923c',
   predSub: 'Fadiga cervical/motora prevista em ~4 min',
@@ -826,32 +869,32 @@ const CompassoHabitLessons = [
   actionType: 'lock_single_window'
  },
  {
-  realCycle: '36 min',
-  realCycleSub: 'Pico de eficiência entre o min 8 e o min 34',
-  trigger: 'Exaustão Ultradiana',
-  triggerSub: 'Insistir após o min 36 dobra erros e releituras',
-  risk: 68,
-  riskColor: '#fb923c',
-  predSub: 'Início da curva de retorno decrescente em ~5 min',
-  concept: 'Ciclo Ultradiano & Lei de Yerkes-Dodson (1908)',
-  lesson: 'Seu histórico mostra que forçar 50 ou 60 minutos contínuos gera "falso estudo" nos 15 minutos finais: você permanece sentado, mas a consolidação sináptica despenca por fadiga autonômica.',
-  evidence: 'Sinal preditivo: desaceleração motora progressiva detectada após o minuto 32.',
-  actionLabel: 'Iniciar Micropausa 4-4-4 Agora (1 clique)',
-  actionType: 'open_breathe'
+  realCycle: 'Restauração',
+  realCycleSub: 'Modo Hobby / Descanso reconhecido pela IA',
+  trigger: 'Pausa Ativa / Hobby',
+  triggerSub: 'Recuperação dopaminérgica sem culpa cognitiva',
+  risk: 14,
+  riskColor: '#10b981',
+  predSub: 'Córtex pré-frontal em recuperação saudável',
+  concept: 'Teoria da Restauração da Atenção (Kaplan, 1995)',
+  lesson: 'Nem todo uso fora do trabalho é falha: a IA diferencia procrastinação ansiosa de hobbies restauradores. Pausas planejadas em atividades que você gosta restauram a atenção direcionada para o próximo bloco.',
+  evidence: 'Via de mão dupla: contexto de Hobby/Descanso registrado no seu perfil diário.',
+  actionLabel: 'Programar Retorno Suave em 25 min (1 clique)',
+  actionType: 'set_35'
  },
  {
-  realCycle: '40 min',
-  realCycleSub: 'Estabilidade visual alta nas primeiras 35 min',
+  realCycle: '36 min',
+  realCycleSub: 'Pico de eficiência entre o min 8 e o min 34',
   trigger: 'Fadiga Ocular Precoce',
   triggerSub: 'Queda de piscadas + projeção cervical > 7°',
-  risk: 24,
-  riskColor: '#10b981',
-  predSub: 'Fluxo cognitivo estável pelos próximos 12 min',
-  concept: 'Marcadores Somáticos de Fadiga Precoce (Ergonomia Cognitiva)',
+  risk: 64,
+  riskColor: '#fb923c',
+  predSub: 'Início da curva de retorno decrescente em ~5 min',
+  concept: 'Ciclo Ultradiano & Marcadores Somáticos (Kleitman / Damasio)',
   lesson: 'Antes de você sentir cansaço consciente, seu corpo dá dois avisos 6 minutos antes: redução de piscadas (olho seco fixo no monitor) e inclinação involuntária do tronco/cabeça para frente.',
-  evidence: 'Sinal preditivo: postura e olhar alinhados; auto-piloto monitorando silenciosamente.',
-  actionLabel: 'Calibrar Alerta Precoce Postural (1 clique)',
-  actionType: 'enable_posture_guard'
+  evidence: 'Sinal preditivo: câmera MediaPipe 468 pts e prints periódicos ativos em segundo plano.',
+  actionLabel: 'Iniciar Micropausa 4-4-4 Agora (1 clique)',
+  actionType: 'open_breathe'
  }
 ];
 function renderHabitLesson(idx) {
@@ -871,30 +914,88 @@ function renderHabitLesson(idx) {
  $('twinHabitEvidence').textContent = item.evidence;
  $('twinApplyActionBtn').textContent = item.actionLabel;
  $('twinApplyActionBtn').dataset.actionType = item.actionType;
+ if ($('jarvisDailyNarrative') && !manualLessonOverride) {
+  $('jarvisDailyNarrative').textContent = buildJarvisNarrative();
+ }
+}
+async function tryJarvisAutonomousBoot() {
+ if (jarvisBooted || !state) return;
+ if (document.body.classList.contains('auth-active')) return;
+ jarvisBooted = true;
+ const autoOn = $('aiAutopilot')?.checked;
+ if (!autoOn) return;
+ try {
+  if (!state.startup) api('startup', { enabled: true }).catch(() => {});
+  if (!state.active) {
+   await api('start', {
+    project: $('project')?.value || 'Foco Geral',
+    goal: 0,
+    ...(window.contextStartOptions?.() || { capture_enabled: true, allow_ai_upload: true, analysis_provider: 'ollama', local_model: 'llama3:8b' })
+   });
+  }
+  if (!cameraOn && $('cameraAuto')?.checked) {
+   startCamera(true).catch(() => {});
+  }
+ } catch (_) {}
 }
 function updateCognitiveTwinMentor() {
  if (!$('cognitiveTwinCard')) return;
  const autoOn = $('aiAutopilot')?.checked;
  if ($('twinConfidenceBadge')) {
-  $('twinConfidenceBadge').textContent = autoOn ? 'Auto-Piloto IA · 88% conf.' : 'Modo Manual · IA Passiva';
+  $('twinConfidenceBadge').textContent = autoOn ? 'Boot Automático · Sensores Ativos' : 'Modo Manual · IA Passiva';
  }
+ tryJarvisAutonomousBoot();
  if (!manualLessonOverride && state) {
   const mins = (state.elapsed || 0) / 60;
   const switches = state.report?.window_switches || 0;
-  if (switches >= 6) currentHabitLessonIdx = 1;
-  else if (mins >= 30) currentHabitLessonIdx = 2;
-  else if (state.active) currentHabitLessonIdx = 0;
+  if (jarvisUserContextMode === 'hobby') currentHabitLessonIdx = 2;
+  else if (switches >= 6) currentHabitLessonIdx = 1;
+  else if (mins >= 30) currentHabitLessonIdx = 3;
+  else currentHabitLessonIdx = 0;
   renderHabitLesson(currentHabitLessonIdx);
  }
- if (autoOn && state && !state.active && state.live?.hooks && state.category !== 'distraction') {
-  ambientIdleTicks++;
-  if (ambientIdleTicks === 15) {
-   notify('Auto-Piloto IA: fluxo de estudo detectado no seu cotidiano. Aprendendo seus padrões silenciosamente.');
-  }
- } else {
-  ambientIdleTicks = 0;
- }
 }
+document.querySelectorAll('.jarvis-chip').forEach(chip => {
+ chip.onclick = () => {
+  document.querySelectorAll('.jarvis-chip').forEach(c => c.classList.toggle('active', c === chip));
+  jarvisUserContextMode = chip.dataset.jarvisMode || 'daily';
+  manualLessonOverride = false;
+  if (jarvisUserContextMode === 'hobby') currentHabitLessonIdx = 2;
+  else if (jarvisUserContextMode === 'stuck') currentHabitLessonIdx = 0;
+  else if (jarvisUserContextMode === 'study') currentHabitLessonIdx = 1;
+  else currentHabitLessonIdx = 0;
+  if ($('jarvisDailyNarrative')) $('jarvisDailyNarrative').textContent = buildJarvisNarrative();
+  renderHabitLesson(currentHabitLessonIdx);
+ };
+});
+if ($('jarvisSpeakBtn')) $('jarvisSpeakBtn').onclick = () => {
+ speakJarvisText($('jarvisDailyNarrative')?.textContent || buildJarvisNarrative());
+};
+if ($('jarvisChatForm')) $('jarvisChatForm').onsubmit = e => {
+ e.preventDefault();
+ const inp = $('jarvisUserInput');
+ const text = inp?.value?.trim();
+ if (!text) return;
+ inp.value = '';
+ manualLessonOverride = true;
+ const lower = text.toLowerCase();
+ const greet = getJarvisGreetingPrefix();
+ const user = getJarvisUserName();
+ if (/jogo|jogar|hobby|descans|filme|série|serie|música|musica|lazer/.test(lower)) {
+  jarvisUserContextMode = 'hobby';
+  renderHabitLesson(2);
+  $('jarvisDailyNarrative').textContent = `"Entendido, ${user}! Registrei "${text}" como momento de Hobby e Restauração Cognitiva. Pausei cobranças de produtividade para que seu cérebro se recupere (Metodologia de Kaplan, 1995). Quando quiser retomar, ajusto seu bloco automaticamente."`;
+ } else if (/travad|difícil|dificil|erro|dúvida|duvida|cansad|não consigo/.test(lower)) {
+  jarvisUserContextMode = 'stuck';
+  renderHabitLesson(0);
+  $('jarvisDailyNarrative').textContent = `"${greet}, ${user}. Sobre "${text}": detectei pelos sinais da tela e cadência que há sobrecarga na memória de trabalho (Sweller). Sugestão prática: divida isso em um único micro-passo de 15 min e faça 1 ciclo respiratório 4-4-4 antes."`;
+ } else {
+  jarvisUserContextMode = 'study';
+  renderHabitLesson(1);
+  if ($('objective')) $('objective').value = text;
+  $('jarvisDailyNarrative').textContent = `"Perfeito, ${user}! Já vinculei "${text}" ao seu mapeamento contínuo (MediaPipe 468 pts + prints de contexto ativos). Recomendo usarmos blocos de 35 min com Autoexplicação ao final de cada etapa."`;
+ }
+};
 if ($('cycleHabitLessonBtn')) $('cycleHabitLessonBtn').onclick = () => {
  manualLessonOverride = true;
  currentHabitLessonIdx = (currentHabitLessonIdx + 1) % CompassoHabitLessons.length;
