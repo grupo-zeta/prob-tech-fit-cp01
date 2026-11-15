@@ -396,7 +396,7 @@ if ($('logoutBtn')) $('logoutBtn').onclick = () => {
 };
 const colors={focus:'#2fb380',study:'#4c7ef3',neutral:'#8b909a',distraction:'#e55353',mixed:'#8b909a'};
 const labels={focus:'Foco',study:'Leitura',neutral:'Neutro',distraction:'Distração',mixed:'Misto'};
-let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, videoVisible=true, cameraGeneration=0;
+let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, cameraManual=false, videoVisible=true, cameraGeneration=0;
 let calibrated=null, lastCameraSend=0, blinkClosed=false, blinkCount=0, totalBlinks=0, lastLandmarks=null, cameraBusy=false;
 let calibrationRun=null, classificationContext=null, liveClassificationTarget=null, blinkStarted=0;
 let calibrationPrompted=false;
@@ -453,7 +453,7 @@ async function refresh(){
  const r=await fetch('/api/state');if(!r.ok)throw Error('Monitor local indisponível');state=await r.json();token=state.token;
  $('timer').textContent=clock(state.elapsed);const active=!!state.active;
  $('status').textContent=active?(state.paused?'Pausado \u00B7 4-4-4':'Fase 2 \u00B7 Execu\u00E7\u00E3o'):'Fase 1 \u00B7 Previs\u00E3o';
- $('start').disabled=active;$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
+ $('start').disabled=active;$('start').textContent=active?'Em andamento':'Iniciar foco';$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
  $('project').disabled=active;$('goal').disabled=active;
  const goal=active?state.active.goal:getGoal();
  $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):'Cont\u00EDnuo';
@@ -473,7 +473,7 @@ async function refresh(){
  $('input').title=`${state.report.scroll} eventos de rolagem · ${Math.round(state.report.mouse_distance||0)} px de deslocamento (dia)`;
  $('mouseMetrics').textContent=`Mouse: x ${state.live.mouse_x??'—'}, y ${state.live.mouse_y??'—'} · ${state.report.moves||0} movimentos · ${Math.round(state.report.mouse_distance||0)} px · ${state.report.scroll} rolagens (dia).`;
  $('windowMetrics').textContent=$('window').title;
- if(cameraOn&&(!active||state.paused))stopCamera();
+ if(cameraOn&&!cameraManual&&(!active||state.paused))stopCamera();
  if(!$('reportDay').value)$('reportDay').value=state.report.day;
  if($('reportDay').value===state.report.day){report=state.report;if(tab!=='focus')renderReport();}
  window.renderCompassoContext?.();
@@ -634,7 +634,7 @@ function pdf(analysisOnly=false){
 }
 $('pdf').onclick=safe(()=>pdf(false));$('aiPdf').onclick=safe(()=>pdf(true));
 function stopCamera(){
- const wasOn=cameraOn;cameraGeneration++;cameraOn=false;
+ const wasOn=cameraOn;cameraGeneration++;cameraOn=false;cameraManual=false;
  if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;
  $('video').srcObject=null;$('video').hidden=true;$('cameraPlaceholder').hidden=false;
  $('cameraToggle').textContent='Ativar câmera';$('cameraStatus').textContent='Câmera desligada';$('points').textContent='';
@@ -644,8 +644,8 @@ function stopCamera(){
  cancelCalibration();calibrated=null;lastLandmarks=null;autoCalibrationSamples=[];lastRaw=null;
  if(wasOn&&token)api('camera_off',{},true).catch(()=>{});
 }
-async function startCamera(){
- if(!state?.active||state.paused)return notify('Inicie ou retome o foco antes de ativar a câmera.');
+async function startCamera(manual=false){
+ if(manual)cameraManual=true;
  const generation=++cameraGeneration;$('cameraToggle').disabled=true;$('cameraStatus').textContent='Carregando modelos locais…';
  try{
   const acquired=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:360},facingMode:'user'},audio:false});
@@ -721,9 +721,9 @@ function onResults(results){
   }else{downwardGazeSince=0;}
  }
  $('signalMetrics').innerHTML=[['Olhar',data.gaze_direction?gazeLabels[data.gaze_direction]:'sem leitura calibrada'],['Cabeça H / V / inclinação',`${degrees(data.head_yaw)} / ${degrees(data.head_pitch)} / ${degrees(data.head_roll)}`],['Ombros / tronco',`${degrees(data.shoulder_tilt)} / ${degrees(data.trunk_lean)}`],['Quadris / pontos visíveis',`${degrees(data.hip_tilt)} / ${data.pose_points}`],['Cotovelos E / D',`${degrees(data.elbow_left)} / ${degrees(data.elbow_right)}`],['Joelhos E / D',`${degrees(data.knee_left)} / ${degrees(data.knee_right)}`]].map(([k,v])=>`<span data-reading><b>${k}</b><br>${esc(v)}</span>`).join('');
- if(performance.now()-lastCameraSend>1000){lastCameraSend=performance.now();api('camera',{...data,blinks:blinkCount}).catch(e=>notify('Falha ao registrar câmera: '+e.message));blinkCount=0;}
+ if(state?.active&&!state?.paused&&token&&performance.now()-lastCameraSend>1000){lastCameraSend=performance.now();api('camera',{...data,blinks:blinkCount}).catch(e=>notify('Falha ao registrar câmera: '+e.message));blinkCount=0;}
 }
-$('cameraToggle').onclick=()=>cameraOn?stopCamera():startCamera();
+$('cameraToggle').onclick=()=>cameraOn?stopCamera():startCamera(true);
 $('videoMode').onclick=()=>{videoVisible=!videoVisible;$('video').hidden=!videoVisible||!cameraOn;$('videoMode').textContent=videoVisible?'Vídeo e malha':'Somente malha';};
 $('forgetCalibration').onclick=()=>{
  if(!CompassoCalibration.forget(calibrationStorage(),calibrationKey))return notify('Ative a câmera correspondente para esquecer a calibração.');
