@@ -138,6 +138,9 @@ function updateWin7ClockGadget() {
  if ($('gadgetFinish')) {
   $('gadgetFinish').disabled = !active;
  }
+ if ($('gadgetCancel')) {
+  $('gadgetCancel').disabled = !active;
+ }
 }
 function toggleGadgetHandsMode() {
  gadgetHandsUseSession = !gadgetHandsUseSession;
@@ -434,7 +437,8 @@ $('pause').onclick=safe(async()=>{await api('pause');if(stream)stopCamera();awai
 $('finish').onclick=safe(async()=>{await api('finish');stopCamera();await refresh();notify('Sessão concluída. O histórico foi salvo no PC.');});
 if($('gadgetToggleRun'))$('gadgetToggleRun').onclick=()=>{if(!state?.active)$('start').click();else $('pause').click();};
 if($('gadgetFinish'))$('gadgetFinish').onclick=()=>$('finish').click();
-$('cancelSession').onclick=safe(async()=>{if(!confirm('Cancelar esta sessão? O tempo, as capturas e os registros desta sessão serão descartados.'))return;await api('cancel');stopCamera();await refresh();notify('Sessão cancelada. Você pode começar outra quando quiser.');});
+if($('gadgetCancel'))$('gadgetCancel').onclick=()=>$('cancelSession').click();
+$('cancelSession').onclick=safe(async()=>{if(!confirm('Cancelar esta sessão? O tempo, as capturas e os registros desta sessão serão descartados.'))return;await api('cancel');if(!cameraManual)stopCamera();await refresh();notify('Sessão cancelada. Você pode começar outra quando quiser.');});
 $('category').onpointerdown=()=>{liveClassificationTarget={...state.live};};
 $('category').onfocus=()=>{liveClassificationTarget={...state.live};};
 $('category').onchange=safe(async()=>{const target=liveClassificationTarget||state.live;await api('classify',{scope:'window',app:target.app,title:target.window_title,category:$('category').value});liveClassificationTarget=null;await refresh();});
@@ -453,7 +457,7 @@ async function refresh(){
  const r=await fetch('/api/state');if(!r.ok)throw Error('Monitor local indisponível');state=await r.json();token=state.token;
  $('timer').textContent=clock(state.elapsed);const active=!!state.active;
  $('status').textContent=active?(state.paused?'Pausado \u00B7 4-4-4':'Fase 2 \u00B7 Execu\u00E7\u00E3o'):'Fase 1 \u00B7 Previs\u00E3o';
- $('start').disabled=active;$('start').textContent=active?'Em andamento':'Iniciar foco';$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
+ $('start').disabled=active;$('start').textContent=active?'Em andamento':'Iniciar foco';$('start').classList.toggle('running-indicator',active);$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
  $('project').disabled=active;$('goal').disabled=active;
  const goal=active?state.active.goal:getGoal();
  $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):'Cont\u00EDnuo';
@@ -466,7 +470,7 @@ async function refresh(){
    showSmartphoneOrWindowAlert(`Modo Janela \u00DAnica: altern\u00E2ncia detectada de "${lockedTaskApp}" para "${state.live.app}".`);
   }
  }
- if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;notify('Bloco concluído! Considere uma pausa 4-4-4 ou conclua a sessão.');}
+ if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;await api('finish');if(!cameraManual)stopCamera();await refresh();notify(`Bloco de ${goal} min concluído! Sessão encerrada e salva automaticamente.`);return;}
  $('window').textContent=state.live.window_title||state.live.app;$('window').title=`${state.live.app} · ${state.live.window_title||'Sem título'} · ID ${state.live.window_id||'indisponível'}`;
  if(document.activeElement!==$('category'))$('category').value=state.category;$('startup').checked=state.startup;
  $('input').textContent=state.live.hooks?(active?`${state.report.keys} teclas · ${state.report.clicks} cliques`:'Pronto'):'Indisponível';

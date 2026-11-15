@@ -638,6 +638,41 @@ h2, .section-heading h2 {
  border-color: var(--line);
 }
 
+.actions {
+ display: flex;
+ gap: 6px;
+}
+
+.actions button {
+ flex: 1;
+ padding: 8px 6px;
+ font-size: 11px;
+ min-height: 34px;
+ white-space: nowrap;
+}
+
+.actions .primary {
+ flex: 1.35;
+}
+
+.actions .primary.running-indicator:disabled {
+ opacity: 1;
+ background: rgba(249, 115, 22, 0.16);
+ border: 1px solid #f97316;
+ color: #fb923c;
+}
+
+.cancel-btn:not(:disabled) {
+ color: #fca5a5;
+ border-color: rgba(239, 68, 68, 0.32);
+}
+
+.cancel-btn:not(:disabled):hover {
+ background: rgba(239, 68, 68, 0.16);
+ border-color: #ef4444;
+ color: #fecaca;
+}
+
 .progress, .daily-progress {
  background: #262c37;
  height: 4px;
