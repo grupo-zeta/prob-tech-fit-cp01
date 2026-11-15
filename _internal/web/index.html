@@ -155,64 +155,49 @@
 <label id="customGoalField" class="custom-time" hidden>Minutos <input id="customGoal" type="number" min="1" max="1440" step="1" value="50"></label><div class="timer-meta-row"><details class="preset-evidence"><summary id="presetSummary">Referência do perfil</summary><p id="presetMethod"></p><p id="presetEvidence"></p><a id="presetSource" target="_blank" rel="noopener"></a></details><div style="display:flex;gap:10px;align-items:center"><label class="camera-auto"><input id="aiAutopilot" type="checkbox" checked> Auto-Piloto IA (Zero-Clique)</label><label class="camera-auto"><input id="cameraAuto" type="checkbox" checked> Câmera auto</label></div></div><div class="actions"><button class="primary" id="start">Iniciar foco</button><button id="pause" disabled>Pausar</button><button id="finish" disabled>Concluir</button><button id="cancelSession" class="cancel-btn" disabled>Cancelar</button></div><div class="progress"><i id="progress"></i></div></article>
 <article class="cognitive-twin-card" id="cognitiveTwinCard">
 <div class="section-heading">
-<h2>Copiloto Contínuo (Modo J.A.R.V.I.S.) · Via de Mão Dupla</h2>
-<div class="twin-header-actions">
-<span class="badge" id="twinConfidenceBadge">Boot Automático · Sensores Ativos</span>
-<button type="button" id="jarvisSpeakBtn" title="Ouvir feedback por voz">🔊 Ouvir IA</button>
-<button type="button" id="cycleHabitLessonBtn" title="Alternar padrão aprendido e conceito">Próxima Análise ↻</button>
-</div>
+<h2>Copiloto Autônomo · aprende com o seu uso, sem cliques</h2>
+<span class="badge" id="twinConfidenceBadge">Aprendendo seu ritmo</span>
 </div>
 <div class="jarvis-briefing-box">
 <div class="jarvis-briefing-head">
 <span class="jarvis-live-dot"></span>
-<b id="jarvisGreetingTitle">Boa noite, Igor · Mapeamento silencioso iniciado com o Windows</b>
-<span id="jarvisSensorsTag" class="tiny muted">MediaPipe 468 pts · Prints (1m) · Apps &amp; Hobbies</span>
+<b id="jarvisGreetingTitle">Copiloto iniciando…</b>
+<span id="jarvisSensorsTag" class="tiny muted">Janelas · Teclado/Mouse · Câmera local · Capturas</span>
 </div>
-<p id="jarvisDailyNarrative">"Olá Igor, pude perceber que seu cotidiano hoje se resumiu ao uso de <b>VS Code (58 min)</b>, <b>Leitor PDF (19 min)</b> e momentos de hobby/pausa em <b>Navegador &amp; Mídia (8 min)</b>. Como sua cadência cai após 34 min contínuos, podemos melhorar seu fluxo usando a metodologia de <b>Prática Distribuída + Autoexplicação (Dunlosky, 2013)</b>."</p>
-<div class="jarvis-two-way-bar">
-<div class="jarvis-context-chips">
-<button type="button" class="jarvis-chip active" data-jarvis-mode="daily">Resumo do Cotidiano</button>
-<button type="button" class="jarvis-chip" data-jarvis-mode="study">Foco / Tarefa Complexa</button>
-<button type="button" class="jarvis-chip" data-jarvis-mode="hobby">Modo Hobby / Descanso</button>
-<button type="button" class="jarvis-chip" data-jarvis-mode="stuck">Travado num Assunto</button>
-</div>
-<form id="jarvisChatForm" class="jarvis-chat-form">
-<input type="text" id="jarvisUserInput" placeholder="Via de mão dupla: diga à IA o que vai fazer agora (trabalho, estudo, hobby, dúvida)...">
-<button type="submit" class="primary compact">Dialogar</button>
-</form>
-</div>
+<p id="jarvisDailyNarrative">Observando seus primeiros minutos de uso em segundo plano.</p>
+<div id="jarvisNowLine" class="jarvis-now-line">Agora: aguardando leitura da janela ativa…</div>
 </div>
 <div class="twin-learned-grid">
 <div class="twin-stat-box">
-<small>1. LIMIAR BIOLÓGICO REAL</small>
-<strong id="twinRealCycle">34 min</strong>
-<span id="twinRealCycleSub" class="tiny muted">Queda recorrente aos ~34m (vs. 50m tentados)</span>
+<small>1. SEU LIMIAR REAL DE FOCO</small>
+<strong id="twinRealCycle">—</strong>
+<span id="twinRealCycleSub" class="tiny muted">Aprendendo com seus ciclos</span>
 </div>
 <div class="twin-stat-box">
-<small>2. PADRÃO DE APPS &amp; HOBBIES</small>
-<strong id="twinTriggerPattern">Estudo + Lazer</strong>
-<span id="twinTriggerSub" class="tiny muted">Equilíbrio entre produção técnica e restauração</span>
+<small>2. COMO FOI SEU DIA</small>
+<strong id="twinTriggerPattern">—</strong>
+<span id="twinTriggerSub" class="tiny muted">Apps, estudo e hobbies</span>
 </div>
 <div class="twin-stat-box">
-<small>3. PREDIÇÃO PRÓXIMOS 5 MIN</small>
-<strong id="twinPredictionRisk" style="color:#fb923c">Risco 78%</strong>
-<div class="progress" style="margin:4px 0"><i id="twinPredictionBar" style="width:78%;background:#fb923c"></i></div>
-<span id="twinPredictionSub" class="tiny muted">Fadiga cervical/motora prevista em ~4 min</span>
+<small>3. PREDIÇÃO PRÓXIMOS MINUTOS</small>
+<strong id="twinPredictionRisk">—</strong>
+<div class="progress" style="margin:4px 0"><i id="twinPredictionBar" style="width:0%"></i></div>
+<span id="twinPredictionSub" class="tiny muted">Calculando</span>
 </div>
 </div>
 <div class="twin-lesson-box">
 <div class="twin-lesson-top">
-<span class="twin-lesson-tag">METODOLOGIA SUGERIDA PELA IA</span>
-<b id="twinConceptTitle">Sobrecarga da Memória de Trabalho (Sweller, 1988)</b>
+<span class="twin-lesson-tag" id="twinLessonTag">OBSERVANDO</span>
+<b id="twinConceptTitle">Aprendizagem silenciosa do seu ritmo</b>
 </div>
-<p id="twinLessonText">A IA aprendeu no seu cotidiano que você não abre abas distrativas por acaso, mas após ficar &gt;90s parado em um trecho complexo. Quando a memória operacional excede ~4 blocos, o cérebro busca alívio dopaminérgico trocando de janela.</p>
+<p id="twinLessonText">Nenhuma intervenção necessária agora. Vou falar com você só quando o seu uso indicar que vale a pena.</p>
 <div class="twin-lesson-footer">
-<span id="twinHabitEvidence" class="tiny muted">Sinal preditivo atual: cadência caiu 42% + inclinação cervical de 6° no min 31.</span>
-<button type="button" class="primary compact" id="twinApplyActionBtn">Ajustar ritmo para 35 min (1 clique)</button>
+<span id="twinHabitEvidence" class="tiny muted">Ação automática: nenhuma.</span>
 </div>
 </div>
+<ol id="jarvisFeed" class="jarvis-feed" aria-label="O que a IA fez sozinha"></ol>
 </article>
-<article class="context-options"><details id="contextDetails"><summary><div class="summary-top"><b>Configuração do bloco</b><span class="summary-hint">Editar</span></div><div class="active-pills" id="activeFeaturePills"><span class="pill-on" id="pillCamera">Câmera</span><span class="pill-on" id="pillSmartphone">Anti-smartphone</span><span class="pill-on" id="pillSingleWin">Janela única</span><span class="pill-on" id="pillGuard">Bloqueio web</span><span class="pill-on" id="pillCapture">Capturas (1m)</span><span class="pill-on" id="pillAi">llama3:8b</span></div></summary><div class="option-content"><label class="option-toggle"><input id="smartphoneAlertEnabled" type="checkbox" checked><span><b>Alerta de smartphone (olhar baixo &gt;5s)</b><small>Detecta inclinação persistente para fora do monitor.</small></span></label><label class="option-toggle"><input id="singleWindowEnabled" type="checkbox" checked><span><b>Modo janela única</b><small>Alerta ao alternar para fora da janela principal da tarefa.</small></span></label><label class="option-toggle"><input id="startupPromptEnabled" type="checkbox"><span>Exibir pop-up manual ao iniciar o Windows (desativado no modo contínuo)</span></label><label class="field-label" for="objective">Objetivo da sessão (Previsão)</label><textarea id="objective" rows="2" maxlength="1500" placeholder="Ex.: Resolver lista 3 de circuitos."></textarea><label class="option-toggle"><input id="guardEnabled" type="checkbox" checked><span><b>Bloqueio de sites distrativos</b><small>Via extensão do navegador.</small></span></label><div class="guard-fields"><select id="guardMode" aria-label="Modo de proteção"><option value="blocklist">Bloquear lista abaixo</option><option value="allowlist">Permitir apenas a lista</option></select><textarea id="guardDomains" rows="2" aria-label="Domínios" placeholder="youtube.com, instagram.com"></textarea><div class="section-heading"><span class="muted tiny" id="extensionStatus">Extensão desconectada</span><button id="extensionGuide">Instalar</button></div></div><label class="option-toggle"><input id="captureEnabled" type="checkbox" checked><span><b>Capturas periódicas de janela</b></span></label><label class="capture-interval">Intervalo <select id="captureInterval"><option value="30">30s</option><option value="60" selected>1 min</option><option value="120">2 min</option></select></label><label class="field-label" for="analysisProvider">Motor de análise</label><select id="analysisProvider" class="provider-select"><option value="local">Local (Instantâneo)</option><option value="ollama" selected>Ollama (llama3:8b)</option><option value="openai">OpenAI API</option></select><label id="localModelField" class="field-label">Modelo Ollama <input id="localModel" value="llama3:8b" maxlength="80"></label><p class="muted tiny" id="providerHint" hidden></p><label class="option-toggle"><input id="aiAuto" type="checkbox" checked><span><b id="autoAnalysisLabel">Análise automática</b><small id="autoAnalysisHint">Até 8 por sessão.</small></span></label></div></details><p id="guardWarning" class="guard-warning" role="status" hidden>Extensão desconectada.</p><div class="privacy-state" hidden><span class="privacy-dot"></span><span id="contextStatus">Ativo</span></div><div class="context-actions" hidden><button id="captureNow" disabled>Capturar</button><button id="stopCaptures" disabled>Parar</button></div></article>
+<article class="context-options"><details id="contextDetails"><summary><div class="summary-top"><b>Configuração do bloco</b><span class="summary-hint">Editar</span></div><div class="active-pills" id="activeFeaturePills"><span class="pill-on" id="pillCamera">Câmera</span><span class="pill-on" id="pillSmartphone">Anti-smartphone</span><span class="pill-on" id="pillSingleWin">Janela única</span><span class="pill-on" id="pillGuard">Bloqueio web</span><span class="pill-on" id="pillCapture">Capturas (1m)</span><span class="pill-on" id="pillAi">llama3:8b</span></div></summary><div class="option-content"><label class="option-toggle"><input id="smartphoneAlertEnabled" type="checkbox" checked><span><b>Alerta de smartphone (olhar baixo &gt;5s)</b><small>Detecta inclinação persistente para fora do monitor.</small></span></label><label class="option-toggle"><input id="singleWindowEnabled" type="checkbox" checked><span><b>Modo janela única</b><small>Alerta ao alternar para fora da janela principal da tarefa.</small></span></label><label class="option-toggle"><input id="startupPromptEnabled" type="checkbox"><span>Exibir pop-up manual ao iniciar o Windows (desativado no modo contínuo)</span></label><label class="option-toggle"><input id="jarvisVoiceEnabled" type="checkbox" checked><span><b>Copiloto fala em voz alta</b><small>Saudação e intervenções importantes, em português, sem internet.</small></span></label><label class="field-label" for="objective">Objetivo da sessão (Previsão)</label><textarea id="objective" rows="2" maxlength="1500" placeholder="Ex.: Resolver lista 3 de circuitos."></textarea><label class="option-toggle"><input id="guardEnabled" type="checkbox" checked><span><b>Bloqueio de sites distrativos</b><small>Via extensão do navegador.</small></span></label><div class="guard-fields"><select id="guardMode" aria-label="Modo de proteção"><option value="blocklist">Bloquear lista abaixo</option><option value="allowlist">Permitir apenas a lista</option></select><textarea id="guardDomains" rows="2" aria-label="Domínios" placeholder="youtube.com, instagram.com"></textarea><div class="section-heading"><span class="muted tiny" id="extensionStatus">Extensão desconectada</span><button id="extensionGuide">Instalar</button></div></div><label class="option-toggle"><input id="captureEnabled" type="checkbox" checked><span><b>Capturas periódicas de janela</b></span></label><label class="capture-interval">Intervalo <select id="captureInterval"><option value="30">30s</option><option value="60" selected>1 min</option><option value="120">2 min</option></select></label><label class="field-label" for="analysisProvider">Motor de análise</label><select id="analysisProvider" class="provider-select"><option value="local">Local (Instantâneo)</option><option value="ollama" selected>Ollama (llama3:8b)</option><option value="openai">OpenAI API</option></select><label id="localModelField" class="field-label">Modelo Ollama <input id="localModel" value="llama3:8b" maxlength="80"></label><p class="muted tiny" id="providerHint" hidden></p><label class="option-toggle"><input id="aiAuto" type="checkbox" checked><span><b id="autoAnalysisLabel">Análise automática</b><small id="autoAnalysisHint">Até 8 por sessão.</small></span></label></div></details><p id="guardWarning" class="guard-warning" role="status" hidden>Extensão desconectada.</p><div class="privacy-state" hidden><span class="privacy-dot"></span><span id="contextStatus">Ativo</span></div><div class="context-actions" hidden><button id="captureNow" disabled>Capturar</button><button id="stopCaptures" disabled>Parar</button></div></article>
 <article class="camera-card"><div class="section-heading"><h2>Visão na borda <span id="points"></span></h2><div class="cam-header-btns"><button id="calibrate">Calibrar</button><button id="videoMode">Vídeo + HUD</button></div></div><div class="camera"><video id="video" autoplay muted playsinline hidden></video><canvas id="hud" width="800" height="360"></canvas><span id="cameraStatus">Desligada</span><div id="cameraPlaceholder"><img src="brand.svg" alt=""><p>Câmera pronta</p><small>Processamento 100% local</small></div></div><div class="camera-controls"><div class="arrow-legend"><span class="gaze-arrow">↗ Olhar</span><span class="head-arrow">↗ Cabeça</span></div><button id="cameraToggle">Ativar câmera</button><span id="cameraHelp" hidden>Local</span></div><p id="calibrationSaved" class="calibration-saved" hidden>Calibrado. <button id="forgetCalibration" type="button">Resetar</button></p></article>
 <article class="signals-card"><div class="section-heading"><h2>Telemetria em tempo real</h2><label class="classify-inline"><select id="category" title="Classificar janela atual"><option value="neutral">Janela: Neutra</option><option value="focus">Janela: Foco</option><option value="study">Janela: Leitura</option><option value="distraction">Janela: Distração</option></select></label></div><div class="signals"><div><b>1. Olhar</b><small id="gaze">Inativo</small></div><div><b>2. Cabeça</b><small id="head">Inativo</small></div><div><b>3. Postura</b><small id="posture">Inativo</small></div><div><b>4. Piscadas</b><small id="face">Inativo</small></div><div><b>5. Cadência</b><small id="input">Aguardando</small></div><div><b>6. Janela ativa</b><small id="window">Conectando…</small></div></div><details class="signal-details"><summary>Medidas brutas</summary><div id="signalMetrics" class="muted tiny">Sem leituras no momento.</div><p id="mouseMetrics" class="muted tiny"></p><p id="windowMetrics" class="muted tiny"></p></details></article>
 </section>

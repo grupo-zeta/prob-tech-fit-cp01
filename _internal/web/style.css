@@ -1414,3 +1414,47 @@ body.auth-active > main {
  padding: 4px 12px;
  font-size: 11px;
 }
+
+.jarvis-now-line {
+ font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+ font-size: 10.5px;
+ color: var(--muted);
+ border-top: 1px solid var(--line);
+ padding-top: 6px;
+}
+
+.jarvis-feed {
+ list-style: none;
+ margin: 10px 0 0;
+ padding: 0;
+ display: flex;
+ flex-direction: column;
+ gap: 4px;
+ counter-reset: none;
+}
+
+.jarvis-feed li {
+ counter-increment: none;
+ display: flex;
+ gap: 8px;
+ align-items: baseline;
+ font-size: 10.5px;
+ color: #c9ced6;
+ background: transparent;
+ border: 0;
+ border-left: 2px solid var(--line);
+ border-radius: 0;
+ padding: 2px 0 2px 8px;
+ margin: 0;
+ line-height: 1.4;
+}
+
+.jarvis-feed li::before {
+ content: none;
+}
+
+.jarvis-feed li time {
+ font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+ color: #fb923c;
+ flex-shrink: 0;
+}

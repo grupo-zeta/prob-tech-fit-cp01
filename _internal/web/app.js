@@ -245,7 +245,9 @@ function toggleBreatheCycle() {
 }
 function openBreatheDialog() {
  stopBreatheCycle();
- if ($('breatheDialog')) $('breatheDialog').showModal();
+ if ($('breatheDialog') && !$('breatheDialog').open && !document.querySelector('dialog[open]')) {
+  $('breatheDialog').showModal();
+ }
  toggleBreatheCycle();
 }
 if ($('breatheToggle')) $('breatheToggle').onclick = openBreatheDialog;
@@ -328,18 +330,31 @@ function enterCompassoApp(user, isNewProfile = false) {
  document.body.classList.remove('auth-active');
  centerCompassoWindow();
  if (isNewProfile) {
-  notify(`Perfil "${displayName}" criado e ativado (${user.preset || 50} min).`);
+  notify(`Perfil "${displayName}" criado e ativado. A partir de agora o Compasso inicia sozinho com o Windows.`);
  }
- if (!localStorage.getItem('compasso.tutorialSeen')) {
-  setTimeout(openTutorial, 450);
- }
+ if (state) updateCognitiveTwinMentor();
 }
 try {
+ if ($('aiAutopilot')) {
+  $('aiAutopilot').checked = saved('compasso.aiAutopilot', true);
+  $('aiAutopilot').onchange = () => {
+   localStorage.setItem('compasso.aiAutopilot', JSON.stringify($('aiAutopilot').checked));
+   if ($('aiAutopilot').checked) { jarvisBooted = false; auto.greeted = false; updateCognitiveTwinMentor(); }
+   else if ($('twinConfidenceBadge')) $('twinConfidenceBadge').textContent = 'Copiloto pausado';
+  };
+ }
+ if ($('jarvisVoiceEnabled')) {
+  $('jarvisVoiceEnabled').checked = saved('compasso.jarvisVoice', true);
+  $('jarvisVoiceEnabled').onchange = () => localStorage.setItem('compasso.jarvisVoice', JSON.stringify($('jarvisVoiceEnabled').checked));
+ }
  const savedUserRaw = localStorage.getItem('compasso.authUser');
  if (savedUserRaw) {
   const savedUser = JSON.parse(savedUserRaw);
   if ($('authEmail') && savedUser.email) $('authEmail').value = savedUser.email;
   if ($('authName') && savedUser.name) $('authName').value = savedUser.name;
+  if (savedUser.remember !== false) setTimeout(() => enterCompassoApp(savedUser), 0);
+ } else if (new URLSearchParams(location.search).has('startup')) {
+  setTimeout(() => enterCompassoApp({ name: 'Usuário', email: 'local@compasso', preset: 0, remember: true }), 0);
  }
  renderSavedAccountChips();
 } catch(_) {}
@@ -463,7 +478,10 @@ async function refresh(){
  $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):'Cont\u00EDnuo';
  $('progress').style.width=goal?Math.min(100,state.elapsed/(goal*60)*100)+'%':'0%';document.querySelector('.progress').hidden=!goal;
  $('customGoal').disabled=active;
- if(!active||state.paused){lockedTaskApp=null;downwardGazeSince=0;}
+ if(!active||state.paused||window.compassoSuppressAlerts){
+  lockedTaskApp=null;downwardGazeSince=0;
+  if(window.compassoSuppressAlerts&&$('smartphoneAlertBanner')&&!$('smartphoneAlertBanner').hidden)$('smartphoneAlertBanner').hidden=true;
+ }
  else if($('singleWindowEnabled')?.checked&&state.live?.app&&!/compasso/i.test(state.live.app)){
   if(!lockedTaskApp)lockedTaskApp=state.live.app;
   else if(state.live.app!==lockedTaskApp){
@@ -646,7 +664,7 @@ function stopCamera(){
  const canvas=$('hud');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
  for(const id of ['gaze','head','posture','face']){$(id).textContent='Câmera desligada';$(id).title='';}
  $('signalMetrics').textContent='Ative a câmera durante uma sessão para ver os ângulos.';
- cancelCalibration();calibrated=null;lastLandmarks=null;autoCalibrationSamples=[];lastRaw=null;
+ cancelCalibration();calibrated=null;lastLandmarks=null;autoCalibrationSamples=[];lastRaw=null;window.compassoVision=null;
  if(wasOn&&token)api('camera_off',{},true).catch(()=>{});
 }
 async function startCamera(manual=false){
@@ -715,7 +733,8 @@ function onResults(results){
  $('posture').textContent=data.trunk_lean===null?`${data.pose_points} pontos, quadris fora de quadro`:`Tronco ${degrees(data.trunk_lean)}, ${data.posture?'alinhado':'desvio estimado'}`;
  $('posture').title=`Ombros ${degrees(data.shoulder_tilt)}, tronco ${degrees(data.trunk_lean)}, quadris ${degrees(data.hip_tilt)}`;
  $('face').textContent=data.face?`${results.faceLandmarks.length} pontos, ${totalBlinks} piscadas`:'Rosto não detectado';
- if(state?.active&&!state?.paused&&$('smartphoneAlertEnabled')?.checked){
+ window.compassoVision={ts:performance.now(),gaze:data.gaze_direction,posture:data.posture,centered:data.centered,face:data.face};
+ if(state?.active&&!state?.paused&&$('smartphoneAlertEnabled')?.checked&&!window.compassoSuppressAlerts){
   const lookingDown=(data.gaze_direction==='down')||(data.head_pitch!==null&&data.head_pitch>15);
   if(lookingDown){
    if(!downwardGazeSince)downwardGazeSince=performance.now();
@@ -793,237 +812,353 @@ function captureCalibrationSample(raw){
  const result=CompassoVision.calibrateAdaptive(run.samples,lastRaw);
  applyCalibration(result,calibrationStored?'Calibração salva neste PC. Não será preciso repetir ao iniciar outra sessão com a mesma câmera.':'Calibração concluída e salva neste PC.');
 }
-let currentHabitLessonIdx = 0;
-let manualLessonOverride = false;
-let ambientIdleTicks = 0;
-let jarvisBooted = false;
-let jarvisUserContextMode = 'daily';
-function getJarvisGreetingPrefix() {
- const h = new Date().getHours();
- if (h >= 5 && h < 12) return 'Bom dia';
- if (h >= 12 && h < 18) return 'Boa tarde';
- return 'Boa noite';
+// =====================================================================
+// COPILOTO AUTÔNOMO (ZERO-CLIQUE)
+// Aprende com o uso real (janela ativa, cadência, câmera) e intervém
+// sozinho no momento certo (JITAI), sem exigir nenhuma ação do usuário.
+// =====================================================================
+const AUTO_KEY = 'compasso.autopilot.v1';
+function loadAutoProfile() { try { return JSON.parse(localStorage.getItem(AUTO_KEY)) || {}; } catch (_) { return {}; } }
+const autoProfile = Object.assign({ focusRuns: [], hourly: {}, day: '', dayKinds: {}, dayApps: {}, wrapDay: '', greetDay: '' }, loadAutoProfile());
+function saveAutoProfile() { try { localStorage.setItem(AUTO_KEY, JSON.stringify(autoProfile)); } catch (_) {} }
+
+const KIND_LABEL = { study: 'Estudo/Trabalho', hobby: 'Hobby/Lazer', comm: 'Comunicação', distraction: 'Distração', neutral: 'Neutro', idle: 'Ausente' };
+const KIND_RULES = [
+ ['hobby', /steam|epic games|riot|league of legends|valorant|minecraft|roblox|fortnite|spotify|netflix|prime video|disney\+|max|twitch|crunchyroll|deezer|jogo|game/i],
+ ['distraction', /tiktok|reels|facebook|twitter|x\.com|shorts|9gag|kwai/i],
+ ['comm', /whatsapp|telegram|discord|teams|slack|outlook|gmail|instagram|messenger|zoom/i],
+ ['study', /code|visual studio|pycharm|intellij|eclipse|android studio|terminal|powershell|cmd\.exe|notion|obsidian|word|excel|powerpoint|docs|sheets|slides|acrobat|pdf|moodle|sigaa|classroom|overleaf|jupyter|colab|figma|github|stack ?overflow|anki/i]
+];
+function classifyActivity(live, category) {
+ if (category === 'distraction') return 'distraction';
+ if (category === 'focus' || category === 'study') return 'study';
+ const text = `${live?.app || ''} ${live?.window_title || ''}`;
+ if (/youtube/i.test(text)) return /aula|curso|tutorial|lecture|class|explica|resumo|revis/i.test(text) ? 'study' : 'hobby';
+ for (const [kind, re] of KIND_RULES) if (re.test(text)) return kind;
+ return 'neutral';
 }
-function getJarvisUserName() {
- return $('userBadgeName')?.textContent?.trim() || 'Igor';
+const auto = {
+ kind: 'neutral', kindSince: Date.now(), prevKind: 'neutral', prevKindDur: 0, transition: null,
+ window: '', windowSince: Date.now(), streakStart: null, streakBreakAt: null,
+ lastInput: null, lastInputAt: Date.now(), inputs: [], switches: [], lastApp: '',
+ fired: {}, lastAny: 0, feed: [], lastSave: 0, lastTick: 0, bootAt: Date.now(),
+ lastBriefing: Date.now(), stuck: false, lesson: null, narrative: '', greeted: false
+};
+const medianOf = a => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+const localDay = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const fmtMinutes = s => `${Math.max(1, Math.round(s / 60))} min`;
+function learnedThreshold() { const runs = autoProfile.focusRuns.filter(m => m >= 5); return runs.length >= 3 ? Math.round(medianOf(runs)) : 34; }
+function learnedRuns() { return autoProfile.focusRuns.filter(m => m >= 5).length; }
+function getJarvisGreetingPrefix() { const h = new Date().getHours(); return h >= 5 && h < 12 ? 'Bom dia' : h >= 12 && h < 18 ? 'Boa tarde' : 'Boa noite'; }
+function getJarvisUserName() { const n = $('userBadgeName')?.textContent?.trim(); return n && n !== 'Perfil' ? n : 'você'; }
+function topApps(n = 3) {
+ return Object.entries(autoProfile.dayApps || {}).filter(([k]) => !/compasso/i.test(k)).sort((a, b) => b[1].s - a[1].s).slice(0, n);
 }
-function buildJarvisNarrative() {
- const greet = getJarvisGreetingPrefix();
- const user = getJarvisUserName();
- const apps = state?.report?.apps || [];
- const top1 = apps[0] ? `${apps[0].app} (${Math.max(1, Math.round(apps[0].seconds / 60))} min)` : 'VS Code (58 min)';
- const top2 = apps[1] ? `${apps[1].app} (${Math.max(1, Math.round(apps[1].seconds / 60))} min)` : 'Leitor PDF (19 min)';
- const top3 = apps[2] ? `${apps[2].app} (${Math.max(1, Math.round(apps[2].seconds / 60))} min)` : 'Navegador / Lazer (8 min)';
- if ($('jarvisGreetingTitle')) {
-  $('jarvisGreetingTitle').textContent = `${greet}, ${user} · Mapeamento silencioso iniciado com o Windows`;
- }
- if (jarvisUserContextMode === 'hobby') {
-  return `"${greet}, ${user}. Reconheci que você entrou em momento de Hobby / Lazer após usar ${top1} e ${top2}. Desativei alertas restritivos: segundo a Teoria da Restauração da Atenção (Kaplan, 1995), atividades de lazer voluntário recarregam o córtex pré-frontal para o seu próximo bloco."`;
- }
- if (jarvisUserContextMode === 'stuck') {
-  return `"${greet}, ${user}. Analisei suas últimas capturas de tela e a queda de digitação em ${top1}. Quando travamos num problema, insistir gera bloqueio operacional. Vamos aplicar a Técnica Feynman: escreva em 1 linha no objetivo qual é a dúvida exata e dividiremos em etapas de 15 min."`;
- }
- if (jarvisUserContextMode === 'study') {
-  return `"${greet}, ${user}. Mapeando todos os 468 pontos do MediaPipe, postura e prints a cada 1 min em ${top1}. Seu foco está alinhado; mantenha a metodologia de Recuperação Ativa (Dunlosky, 2013) testando-se antes de mudar de janela."`;
- }
- return `"Olá ${user}, ${greet.toLowerCase()}! Pude perceber que seu cotidiano hoje se resumiu ao uso de ${top1}, ${top2} e ${top3}. Pelos seus sinais de postura, olhar e capturas de tela, podemos melhorar sua retenção aplicando a metodologia de Prática Distribuída com Autoexplicação (Dunlosky, 2013) em ciclos de 35 min."`;
+function appsSentence() {
+ const t = topApps();
+ if (!t.length) return 'ainda estou nos primeiros minutos de observação';
+ return t.map(([name, v]) => `${name} (${fmtMinutes(v.s)}, ${KIND_LABEL[v.k] || 'Neutro'})`).join(', ');
 }
-function speakJarvisText(rawText) {
+function dayShares() {
+ const k = autoProfile.dayKinds || {};
+ const total = Object.entries(k).filter(([n]) => n !== 'idle').reduce((a, [, v]) => a + v, 0) || 1;
+ return { total, study: (k.study || 0) / total, hobby: (k.hobby || 0) / total, comm: (k.comm || 0) / total, distraction: (k.distraction || 0) / total };
+}
+function methodologyForDay() {
+ const s = dayShares();
+ if (s.distraction > 0.2) return { name: 'Intenções de Implementação (Gollwitzer, 1999)', tip: 'combine consigo mesmo: "se eu abrir rede social, então fecho e anoto o que eu ia fazer"' };
+ if (s.comm > 0.25) return { name: 'Agrupamento de mensagens e Resíduo de Atenção (Leroy, 2009)', tip: 'responda mensagens em 2 ou 3 horários fixos em vez de checar o tempo todo' };
+ if (s.study > 0.5) return { name: 'Prática Distribuída com Autoexplicação (Dunlosky et al., 2013)', tip: `estude em ciclos de ${learnedThreshold()} min e, no fim de cada um, explique em voz alta o que aprendeu` };
+ if (s.hobby > 0.4) return { name: 'Restauração da Atenção (Kaplan, 1995)', tip: 'o lazer de hoje recarregou sua atenção; aproveite e reserve 25 min para a tarefa principal no seu horário de pico' };
+ return { name: 'Recuperação Ativa (Roediger e Karpicke, 2006)', tip: 'antes de abrir o material, tente lembrar em 2 minutos o que já sabe sobre o assunto' };
+}
+function peakHour() { let best = null, v = 0; for (const [h, b] of Object.entries(autoProfile.hourly)) if ((b.study || 0) > v) { v = b.study; best = +h; } return v > 900 ? best : null; }
+function speakJarvisText(text) {
  try {
-  if (!window.speechSynthesis) return notify('Síntese de voz não suportada neste navegador.');
+  if (!$('jarvisVoiceEnabled')?.checked || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const clean = String(rawText || '').replace(/<[^>]+>/g, '').replace(/"/g, '');
-  const u = new SpeechSynthesisUtterance(clean);
-  u.lang = 'pt-BR';
-  u.rate = 1.05;
+  const u = new SpeechSynthesisUtterance(String(text || '').replace(/["“”]/g, ''));
+  u.lang = 'pt-BR'; u.rate = 1.03;
   window.speechSynthesis.speak(u);
  } catch (_) {}
 }
-const CompassoHabitLessons = [
- {
-  realCycle: '34 min',
-  realCycleSub: 'Queda recorrente aos ~34m (vs. 50m tentados)',
-  trigger: 'Estudo + Lazer',
-  triggerSub: 'Equilíbrio entre produção técnica e restauração',
-  risk: 78,
-  riskColor: '#fb923c',
-  predSub: 'Fadiga cervical/motora prevista em ~4 min',
-  concept: 'Sobrecarga da Memória de Trabalho (Sweller, 1988)',
-  lesson: 'A IA aprendeu no seu cotidiano que você não abre abas distrativas por acaso, mas após ficar >90s parado em um trecho complexo. Quando a memória operacional excede ~4 blocos, o cérebro busca alívio dopaminérgico trocando de janela.',
-  evidence: 'Sinal preditivo: queda de 42% na cadência + inclinação cervical de 6° após 30 min.',
-  actionLabel: 'Ajustar ritmo para 35 min (1 clique)',
-  actionType: 'set_35'
- },
- {
-  realCycle: '28 min',
-  realCycleSub: 'Fragmentação detectada após 3+ trocas de janela',
-  trigger: 'Alternância Rápida',
-  triggerSub: 'IDE ↔ Mensagens a cada 6 min reduz retenção',
-  risk: 84,
-  riskColor: '#ef4444',
-  predSub: 'Risco alto de perda de contexto nos próximos 3 min',
-  concept: 'Efeito do Resíduo de Atenção (Sophie Leroy, 2009)',
-  lesson: 'A IA identificou que suas micro-trocas rápidas de janela deixam ~22% da sua atenção presa na janela anterior por até 12 minutos. Mesmo voltando rápido ao estudo, seu cérebro opera com capacidade reduzida.',
-  evidence: 'Sinal preditivo: múltiplas alternâncias de janela registradas no bloco atual.',
-  actionLabel: 'Ativar Blindagem Janela Única + 25m (1 clique)',
-  actionType: 'lock_single_window'
- },
- {
-  realCycle: 'Restauração',
-  realCycleSub: 'Modo Hobby / Descanso reconhecido pela IA',
-  trigger: 'Pausa Ativa / Hobby',
-  triggerSub: 'Recuperação dopaminérgica sem culpa cognitiva',
-  risk: 14,
-  riskColor: '#10b981',
-  predSub: 'Córtex pré-frontal em recuperação saudável',
-  concept: 'Teoria da Restauração da Atenção (Kaplan, 1995)',
-  lesson: 'Nem todo uso fora do trabalho é falha: a IA diferencia procrastinação ansiosa de hobbies restauradores. Pausas planejadas em atividades que você gosta restauram a atenção direcionada para o próximo bloco.',
-  evidence: 'Via de mão dupla: contexto de Hobby/Descanso registrado no seu perfil diário.',
-  actionLabel: 'Programar Retorno Suave em 25 min (1 clique)',
-  actionType: 'set_35'
- },
- {
-  realCycle: '36 min',
-  realCycleSub: 'Pico de eficiência entre o min 8 e o min 34',
-  trigger: 'Fadiga Ocular Precoce',
-  triggerSub: 'Queda de piscadas + projeção cervical > 7°',
-  risk: 64,
-  riskColor: '#fb923c',
-  predSub: 'Início da curva de retorno decrescente em ~5 min',
-  concept: 'Ciclo Ultradiano & Marcadores Somáticos (Kleitman / Damasio)',
-  lesson: 'Antes de você sentir cansaço consciente, seu corpo dá dois avisos 6 minutos antes: redução de piscadas (olho seco fixo no monitor) e inclinação involuntária do tronco/cabeça para frente.',
-  evidence: 'Sinal preditivo: câmera MediaPipe 468 pts e prints periódicos ativos em segundo plano.',
-  actionLabel: 'Iniciar Micropausa 4-4-4 Agora (1 clique)',
-  actionType: 'open_breathe'
+let autoNoticeTimer = null;
+function autoNotice(text) {
+ notify(text);
+ clearTimeout(autoNoticeTimer);
+ autoNoticeTimer = setTimeout(() => { if ($('notice')?.textContent === text) $('notice').hidden = true; }, 14000);
+}
+function cadence(now) {
+ const last60 = auto.inputs.filter(([t]) => now - t <= 60000).reduce((a, [, d]) => a + d, 0);
+ const active = auto.inputs.filter(([, d]) => d > 0);
+ const span = Math.max(1, (now - (auto.inputs[0]?.[0] || now)) / 60000);
+ const baseline = active.reduce((a, [, d]) => a + d, 0) / span;
+ return { last60, baseline };
+}
+function predictRisk(now) {
+ const thr = learnedThreshold();
+ const streakMin = auto.streakStart ? (now - auto.streakStart) / 60000 : 0;
+ let risk = 8 + Math.min(57, (streakMin / thr) * 57) + Math.min(18, auto.switches.length * 3);
+ if (auto.stuck) risk += 12;
+ const v = window.compassoVision;
+ if (v && performance.now() - v.ts < 5000 && v.posture === false) risk += 8;
+ if (auto.kind === 'hobby' || auto.kind === 'idle') risk = Math.min(risk, 12);
+ return { risk: Math.round(Math.min(97, risk)), streakMin, thr, eta: Math.max(0, Math.round(thr - streakMin)) };
+}
+function endStreak(now) {
+ const mins = ((auto.streakBreakAt || now) - auto.streakStart) / 60000;
+ if (mins >= 5) { autoProfile.focusRuns.push(Math.round(mins)); autoProfile.focusRuns = autoProfile.focusRuns.slice(-30); saveAutoProfile(); }
+ auto.lastStreakMins = mins; auto.streakStart = null; auto.streakBreakAt = null;
+}
+function fire(type, p, cooldownMin = 20) {
+ const now = Date.now();
+ if (auto.fired[type] && now - auto.fired[type] < cooldownMin * 60000) return false;
+ if (type !== 'boot' && now - auto.lastAny < 4 * 60000) return false;
+ auto.fired[type] = now; auto.lastAny = now; auto.lesson = p;
+ if (p.apply) { try { p.apply(); } catch (_) {} }
+ if (p.narrative) auto.narrative = p.narrative;
+ auto.feed.unshift({ t: new Date(), text: p.feed || p.concept });
+ auto.feed = auto.feed.slice(0, 5);
+ if (p.notice !== false && p.narrative) autoNotice(p.narrative);
+ if (p.speak !== false) speakJarvisText(p.narrative);
+ return true;
+}
+function evaluateInterventions(now, idleSec) {
+ if (!$('aiAutopilot')?.checked || document.body.classList.contains('auth-active')) return;
+ const user = getJarvisUserName(), greet = getJarvisGreetingPrefix();
+ const p = predictRisk(now);
+ // 1. Saudação automática ao iniciar com o Windows
+ if (!auto.greeted) {
+  auto.greeted = true;
+  const peak = peakHour();
+  const firstToday = autoProfile.greetDay !== localDay();
+  autoProfile.greetDay = localDay(); saveAutoProfile();
+  const hasTodayData = dayShares().total >= 600;
+  const m = methodologyForDay();
+  fire('boot', {
+   tag: 'BOAS-VINDAS', concept: hasTodayData ? m.name : 'Mapeamento contínuo iniciado com o Windows',
+   lesson: hasTodayData
+    ? `Hoje você já acumulou atividade em ${appsSentence()}. Sugestão pelo seu perfil atual: ${m.tip}.`
+    : 'Câmera local, janelas ativas, teclado/mouse e capturas de tela já estão sendo observados em segundo plano. Nada sai do seu computador.',
+   narrative: hasTodayData
+    ? `${greet}, ${user}. Retomei o acompanhamento automático. Hoje seu uso principal foi em ${appsSentence()}. Podemos melhorar aplicando ${m.name}: ${m.tip}.`
+    : `${greet}, ${user}. ${firstToday ? 'Iniciei junto com o Windows e já estou acompanhando seu dia.' : 'Estou de volta e continuo acompanhando seu dia.'} ${peak !== null ? `Pelo que aprendi, seu melhor horário de foco costuma ser entre ${peak}h e ${peak + 1}h.` : 'Nos primeiros dias vou só aprender o seu ritmo, sem interromper.'}`,
+   evidence: 'Ação automática: sensores ligados e sessão contínua iniciada sem pop-up.',
+   feed: 'Saudação enviada e sensores ligados automaticamente'
+  });
+  return;
  }
-];
-function renderHabitLesson(idx) {
- const item = CompassoHabitLessons[idx % CompassoHabitLessons.length];
- if (!$('cognitiveTwinCard')) return;
- $('twinRealCycle').textContent = item.realCycle;
- $('twinRealCycleSub').textContent = item.realCycleSub;
- $('twinTriggerPattern').textContent = item.trigger;
- $('twinTriggerSub').textContent = item.triggerSub;
- $('twinPredictionRisk').textContent = `Risco ${item.risk}%`;
- $('twinPredictionRisk').style.color = item.riskColor;
- $('twinPredictionBar').style.width = `${item.risk}%`;
- $('twinPredictionBar').style.background = item.riskColor;
- $('twinPredictionSub').textContent = item.predSub;
- $('twinConceptTitle').textContent = item.concept;
- $('twinLessonText').textContent = item.lesson;
- $('twinHabitEvidence').textContent = item.evidence;
- $('twinApplyActionBtn').textContent = item.actionLabel;
- $('twinApplyActionBtn').dataset.actionType = item.actionType;
- if ($('jarvisDailyNarrative') && !manualLessonOverride) {
-  $('jarvisDailyNarrative').textContent = buildJarvisNarrative();
+ // 2. Transições detectadas pelo próprio uso
+ const tr = auto.transition; auto.transition = null;
+ if (tr) {
+  if (tr.kind === 'hobby' && tr.prev === 'study' && tr.dur >= 300) {
+   if (fire('hobby', {
+    tag: 'PAUSA RECONHECIDA', concept: 'Restauração da Atenção (Kaplan, 1995)',
+    lesson: 'Percebi que você saiu do estudo para algo que gosta. Isso não é falha: lazer escolhido recarrega a atenção direcionada. Silenciei os alertas enquanto você descansa.',
+    narrative: `${user}, vi que você trocou o estudo por um momento de lazer depois de ${fmtMinutes(tr.dur)}. Aproveite, silenciei os alertas. Quando voltar, eu retomo de onde paramos.`,
+    evidence: 'Ação automática: alertas de smartphone e janela única silenciados durante o lazer.',
+    feed: `Lazer detectado após ${fmtMinutes(tr.dur)} de foco · alertas silenciados`
+   }, 30)) return;
+  }
+  if (tr.kind === 'study' && ['hobby', 'idle', 'comm'].includes(tr.prev) && tr.dur >= 300) {
+   if (fire('return', {
+    tag: 'RETORNO AO FOCO', concept: 'Recuperação Ativa (Roediger e Karpicke, 2006)',
+    lesson: 'Ao voltar para uma tarefa, tentar lembrar onde parou antes de reler fortalece a memória muito mais do que reler direto.',
+    narrative: `Bem-vindo de volta, ${user}. Antes de continuar, tente lembrar em um minuto o que você estava fazendo. Seu próximo ciclo ideal é de ${learnedThreshold()} minutos.`,
+    evidence: `Ação automática: novo ciclo de ${learnedThreshold()} min calculado a partir do seu histórico.`,
+    feed: `Retorno ao estudo · ciclo de ${learnedThreshold()} min sugerido`
+   }, 25)) return;
+  }
+ }
+ // 3. Travamento: mesma janela, quase sem digitação, olhar fora do centro
+ if (auto.stuck) {
+  if (fire('stuck', {
+   tag: 'TRAVAMENTO PROVÁVEL', concept: 'Sobrecarga da Memória de Trabalho (Sweller, 1988)',
+   lesson: 'Quando um trecho tem mais informação do que a memória de trabalho consegue segurar, o cérebro trava e procura uma fuga. Quebrar o problema em um passo menor resolve mais do que insistir.',
+   narrative: `${user}, parece que você travou neste trecho há alguns minutos. Escreva em uma linha qual é a dúvida exata e resolva só esse pedaço primeiro.`,
+   evidence: 'Sinais: mesma janela há mais de 2 min, digitação quase parada e olhar fora do texto.',
+   feed: 'Travamento detectado · micro-passo sugerido'
+  })) return;
+ }
+ // 4. Fragmentação: muitas trocas de janela durante estudo
+ if (auto.kind === 'study' && auto.switches.length >= 6) {
+  if (fire('fragmented', {
+   tag: 'ATENÇÃO FRAGMENTADA', concept: 'Resíduo de Atenção (Leroy, 2009)',
+   lesson: 'Cada troca rápida de janela deixa parte da sua atenção presa na tarefa anterior por vários minutos. Mesmo voltando rápido, você estuda com menos capacidade.',
+   narrative: `${user}, você trocou de janela ${auto.switches.length} vezes nos últimos 10 minutos. Ativei o modo janela única para proteger seu foco.`,
+   evidence: 'Ação automática: modo janela única ativado.',
+   apply: () => { if ($('singleWindowEnabled')) $('singleWindowEnabled').checked = true; syncActiveFeaturePills(); },
+   feed: `${auto.switches.length} trocas em 10 min · janela única ativada`
+  })) return;
+ }
+ // 5. Fadiga prevista: passou do limiar pessoal aprendido
+ if (auto.kind === 'study' && p.streakMin >= p.thr) {
+  if (fire('fatigue', {
+   tag: 'LIMIAR ATINGIDO', concept: 'Ciclo Ultradiano e Lei de Yerkes-Dodson',
+   lesson: `Pelo seu histórico, depois de ${p.thr} min seguidos sua digitação e postura começam a cair. Continuar daqui rende menos; uma pausa curta devolve o desempenho.`,
+   narrative: `${user}, você está há ${Math.round(p.streakMin)} minutos em foco, que é o seu limite habitual. Vou abrir uma respiração 4-4-4 de 45 segundos.`,
+   evidence: 'Ação automática: micropausa 4-4-4 aberta e fechada sozinha.',
+   apply: () => { openBreatheDialog(); setTimeout(() => { if ($('breatheDialog')?.open) $('breatheDialog').close(); }, 45000); },
+   feed: `${Math.round(p.streakMin)} min de foco · pausa 4-4-4 automática`
+  }, 30)) return;
+ }
+ // 6. Distração prolongada
+ if (auto.kind === 'distraction' && (now - auto.kindSince) > 6 * 60000) {
+  if (fire('distraction', {
+   tag: 'DISTRAÇÃO PROLONGADA', concept: 'Intenções de Implementação (Gollwitzer, 1999)',
+   lesson: 'Planos no formato "se X acontecer, então faço Y" reduzem recaídas em distrações porque a decisão já está tomada antes do impulso.',
+   narrative: `${user}, faz ${fmtMinutes((now - auto.kindSince) / 1000)} que você está em conteúdo de distração. Que tal combinar: se eu abrir esse app de novo, então volto para a tarefa por 10 minutos?`,
+   evidence: 'Sinal: janela classificada como distração por mais de 6 min.',
+   feed: 'Distração prolongada · plano se-então sugerido'
+  }, 30)) return;
+ }
+ // 7. Comunicação contínua
+ if (auto.kind === 'comm' && (now - auto.kindSince) > 15 * 60000) {
+  if (fire('comm', {
+   tag: 'MENSAGENS EM EXCESSO', concept: 'Agrupamento de comunicação',
+   lesson: 'Checar mensagens o tempo todo fragmenta o dia. Responder em blocos fixos libera tempo contínuo para o que importa.',
+   narrative: `${user}, você está há ${fmtMinutes((now - auto.kindSince) / 1000)} em mensagens. Se puder, agrupe as respostas e volte para a tarefa principal.`,
+   evidence: 'Sinal: aplicativo de comunicação ativo por mais de 15 min.',
+   feed: 'Comunicação longa · agrupamento sugerido'
+  }, 40)) return;
+ }
+ // 8. Resumo automático do cotidiano a cada hora de uso
+ if (now - auto.lastBriefing > 60 * 60000 && dayShares().total > 20 * 60) {
+  auto.lastBriefing = now;
+  const m = methodologyForDay();
+  if (fire('briefing', {
+   tag: 'RESUMO DO SEU DIA', concept: m.name,
+   lesson: `Com base no que observei hoje, a sugestão é: ${m.tip}.`,
+   narrative: `Olá ${user}, pude perceber que seu dia até agora se resumiu a ${appsSentence()}. Acho que podemos melhorar usando ${m.name}: ${m.tip}.`,
+   evidence: 'Fonte: tempo por aplicativo e tipo de atividade registrados hoje.',
+   feed: 'Resumo do dia gerado automaticamente'
+  }, 55)) return;
+ }
+ // 9. Fechamento do dia (após 21h, uma vez por dia)
+ if (new Date().getHours() >= 21 && autoProfile.wrapDay !== localDay() && dayShares().total > 30 * 60) {
+  autoProfile.wrapDay = localDay(); saveAutoProfile();
+  const m = methodologyForDay(), peak = peakHour();
+  fire('wrap', {
+   tag: 'FECHAMENTO DO DIA', concept: m.name,
+   lesson: `Amanhã: ${m.tip}.${peak !== null ? ` Seu pico de foco foi por volta das ${peak}h; deixe a tarefa mais difícil para esse horário.` : ''}`,
+   narrative: `${user}, hoje você usou principalmente ${appsSentence()}. ${peak !== null ? `Seu melhor foco foi por volta das ${peak}h. ` : ''}Para amanhã, sugiro ${m.name}.`,
+   evidence: 'Fonte: histórico do dia inteiro, gerado sem nenhum clique.',
+   feed: 'Fechamento do dia e plano para amanhã'
+  }, 600);
  }
 }
+function renderAutopilot(now) {
+ if (!$('cognitiveTwinCard')) return;
+ const user = getJarvisUserName(), greet = getJarvisGreetingPrefix(), p = predictRisk(now), runs = learnedRuns();
+ const boot = new Date(auto.bootAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+ $('jarvisGreetingTitle').textContent = `${greet}, ${user} · copiloto ativo desde ${boot}`;
+ $('twinConfidenceBadge').textContent = $('aiAutopilot')?.checked ? `Aprendendo · ${Math.min(95, 40 + runs * 5)}% conf.` : 'Copiloto pausado';
+ $('jarvisDailyNarrative').textContent = auto.narrative || `Observando em segundo plano. Até agora: ${appsSentence()}.`;
+ const app = state?.live?.app || '—';
+ $('jarvisNowLine').textContent = `Agora: ${app} · ${KIND_LABEL[auto.kind]} há ${fmtMinutes((now - auto.kindSince) / 1000)}${auto.streakStart ? ` · foco contínuo ${Math.round(p.streakMin)} min` : ''}${auto.stuck ? ' · possível travamento' : ''}`;
+ $('twinRealCycle').textContent = `${p.thr} min`;
+ $('twinRealCycleSub').textContent = runs >= 3 ? `Mediana de ${runs} ciclos reais seus` : `Estimativa inicial · ${runs}/3 ciclos observados`;
+ const s = dayShares(), top = topApps(1)[0];
+ $('twinTriggerPattern').textContent = top ? top[0] : 'Observando';
+ $('twinTriggerSub').textContent = `Estudo ${Math.round(s.study * 100)}% · Lazer ${Math.round(s.hobby * 100)}% · Mensagens ${Math.round(s.comm * 100)}% · Distração ${Math.round(s.distraction * 100)}%`;
+ const color = p.risk >= 70 ? '#ef4444' : p.risk >= 45 ? '#fb923c' : '#10b981';
+ $('twinPredictionRisk').textContent = `Risco ${p.risk}%`;
+ $('twinPredictionRisk').style.color = color;
+ $('twinPredictionBar').style.width = `${p.risk}%`;
+ $('twinPredictionBar').style.background = color;
+ $('twinPredictionSub').textContent = auto.kind === 'hobby' ? 'Pausa restauradora em andamento'
+  : auto.kind === 'idle' ? 'Você está longe do computador'
+  : auto.streakStart ? (p.eta > 0 ? `Queda de foco prevista em ~${p.eta} min` : 'Passou do seu limite habitual')
+  : 'Sem ciclo de foco ativo';
+ const l = auto.lesson;
+ $('twinLessonTag').textContent = l?.tag || 'OBSERVANDO';
+ $('twinConceptTitle').textContent = l?.concept || 'Aprendizagem silenciosa do seu ritmo';
+ $('twinLessonText').textContent = l?.lesson || 'Nenhuma intervenção necessária agora. Vou falar com você só quando o seu uso indicar que vale a pena.';
+ $('twinHabitEvidence').textContent = l?.evidence || 'Ação automática: nenhuma.';
+ const feedSig = auto.feed.map(f => f.t.getTime()).join(',');
+ if ($('jarvisFeed').dataset.sig !== feedSig) {
+  $('jarvisFeed').dataset.sig = feedSig;
+  $('jarvisFeed').innerHTML = auto.feed.map(f => `<li><time>${f.t.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time><span>${esc(f.text)}</span></li>`).join('');
+ }
+}
+function syncReportAppsIntoProfile() {
+ const apps = state?.report?.apps;
+ if (!Array.isArray(apps)) return;
+ const day = localDay();
+ if (autoProfile.day !== day) { autoProfile.day = day; autoProfile.dayKinds = {}; autoProfile.dayApps = {}; }
+ for (const a of apps) {
+  if (!a?.app || /compasso/i.test(a.app)) continue;
+  const k = classifyActivity({ app: a.app, window_title: '' }, a.category);
+  const cur = autoProfile.dayApps[a.app];
+  const sec = Math.max(0, Number(a.seconds) || 0);
+  if (!cur || sec > cur.s + 5) {
+   const diff = sec - (cur?.s || 0);
+   autoProfile.dayApps[a.app] = { s: sec, k };
+   if (diff > 5) autoProfile.dayKinds[k] = (autoProfile.dayKinds[k] || 0) + diff;
+  }
+ }
+}
+function autopilotTick() {
+ if (!state) return;
+ syncReportAppsIntoProfile();
+ const now = Date.now(), dt = auto.lastTick ? Math.min(5, (now - auto.lastTick) / 1000) : 0; auto.lastTick = now;
+ const live = state.live || {};
+ const inputTotal = (state.report?.keys || 0) + (state.report?.clicks || 0) + (state.report?.scroll || 0);
+ const delta = auto.lastInput === null ? 0 : Math.max(0, inputTotal - auto.lastInput);
+ const app = live.app || '';
+ const win = `${app}|${live.window_title || ''}`;
+ if (win !== auto.window) { auto.window = win; auto.windowSince = now; auto.lastInputAt = now; }
+ if (delta > 0 || (auto.lastMouse !== undefined && auto.lastMouse !== `${live.mouse_x},${live.mouse_y}`)) auto.lastInputAt = now;
+ auto.lastMouse = `${live.mouse_x},${live.mouse_y}`;
+ auto.lastInput = inputTotal;
+ auto.inputs.push([now, delta]); auto.inputs = auto.inputs.filter(([t]) => now - t <= 600000);
+ let kind = classifyActivity(live, state.category);
+ const idleSec = (now - auto.lastInputAt) / 1000;
+ if (idleSec > 150 && kind !== 'hobby' && live.hooks !== false) kind = 'idle';
+ if (app && app !== auto.lastApp) { if (auto.lastApp && !/compasso/i.test(app)) auto.switches.push(now); auto.lastApp = app; }
+ auto.switches = auto.switches.filter(t => now - t <= 600000);
+ const day = localDay();
+ if (autoProfile.day !== day) { autoProfile.day = day; autoProfile.dayKinds = {}; autoProfile.dayApps = {}; }
+ autoProfile.dayKinds[kind] = (autoProfile.dayKinds[kind] || 0) + dt;
+ if (app && kind !== 'idle') { const a = autoProfile.dayApps[app] || (autoProfile.dayApps[app] = { s: 0, k: kind }); a.s += dt; a.k = kind; }
+ const hb = autoProfile.hourly[new Date().getHours()] || (autoProfile.hourly[new Date().getHours()] = {}); hb[kind] = (hb[kind] || 0) + dt;
+ if (kind === 'study') { if (!auto.streakStart) auto.streakStart = now; auto.streakBreakAt = null; }
+ else if (auto.streakStart) {
+  if (kind === 'neutral') { if (!auto.streakBreakAt) auto.streakBreakAt = now; if (now - auto.streakBreakAt > 60000) endStreak(now); }
+  else { auto.streakBreakAt = auto.streakBreakAt || now; endStreak(now); }
+ }
+ const c = cadence(now), v = window.compassoVision;
+ const visionFresh = v && performance.now() - v.ts < 5000;
+ const gazeAway = visionFresh ? (v.gaze && v.gaze !== 'center') : (c.baseline >= 25 && idleSec < 90);
+ auto.stuck = live.hooks !== false && kind === 'study' && now - auto.windowSince > 120000 && c.last60 <= 2 && c.baseline >= 15 && gazeAway && idleSec < 150;
+ if (kind !== auto.kind) { auto.transition = { kind, prev: auto.kind, dur: (now - auto.kindSince) / 1000 }; auto.prevKind = auto.kind; auto.kind = kind; auto.kindSince = now; }
+ window.compassoSuppressAlerts = kind === 'hobby' || kind === 'idle';
+ if (now - auto.lastSave > 30000) { auto.lastSave = now; saveAutoProfile(); }
+ evaluateInterventions(now, idleSec);
+ renderAutopilot(now);
+}
+let jarvisBooted = false;
 async function tryJarvisAutonomousBoot() {
- if (jarvisBooted || !state) return;
- if (document.body.classList.contains('auth-active')) return;
+ if (jarvisBooted || !state || document.body.classList.contains('auth-active')) return;
  jarvisBooted = true;
- const autoOn = $('aiAutopilot')?.checked;
- if (!autoOn) return;
+ if (!$('aiAutopilot')?.checked) return;
  try {
   if (!state.startup) api('startup', { enabled: true }).catch(() => {});
   if (!state.active) {
-   await api('start', {
-    project: $('project')?.value || 'Foco Geral',
-    goal: 0,
-    ...(window.contextStartOptions?.() || { capture_enabled: true, allow_ai_upload: true, analysis_provider: 'ollama', local_model: 'llama3:8b' })
-   });
+   await api('start', { project: $('project')?.value || 'Foco Geral', goal: 0, ...(window.contextStartOptions?.() || {}) });
+   const r = await fetch('/api/state');
+   if (r.ok) state = await r.json();
+   if (state?.active?.goal === 0 && $('goal')) { $('goal').value = 'continuous'; if ($('customGoalField')) $('customGoalField').hidden = true; }
   }
-  if (!cameraOn && $('cameraAuto')?.checked) {
-   startCamera(true).catch(() => {});
-  }
+  if (!cameraOn && $('cameraAuto')?.checked) startCamera(false).catch(() => {});
  } catch (_) {}
 }
 function updateCognitiveTwinMentor() {
- if (!$('cognitiveTwinCard')) return;
- const autoOn = $('aiAutopilot')?.checked;
- if ($('twinConfidenceBadge')) {
-  $('twinConfidenceBadge').textContent = autoOn ? 'Boot Automático · Sensores Ativos' : 'Modo Manual · IA Passiva';
- }
  tryJarvisAutonomousBoot();
- if (!manualLessonOverride && state) {
-  const mins = (state.elapsed || 0) / 60;
-  const switches = state.report?.window_switches || 0;
-  if (jarvisUserContextMode === 'hobby') currentHabitLessonIdx = 2;
-  else if (switches >= 6) currentHabitLessonIdx = 1;
-  else if (mins >= 30) currentHabitLessonIdx = 3;
-  else currentHabitLessonIdx = 0;
-  renderHabitLesson(currentHabitLessonIdx);
- }
+ autopilotTick();
 }
-document.querySelectorAll('.jarvis-chip').forEach(chip => {
- chip.onclick = () => {
-  document.querySelectorAll('.jarvis-chip').forEach(c => c.classList.toggle('active', c === chip));
-  jarvisUserContextMode = chip.dataset.jarvisMode || 'daily';
-  manualLessonOverride = false;
-  if (jarvisUserContextMode === 'hobby') currentHabitLessonIdx = 2;
-  else if (jarvisUserContextMode === 'stuck') currentHabitLessonIdx = 0;
-  else if (jarvisUserContextMode === 'study') currentHabitLessonIdx = 1;
-  else currentHabitLessonIdx = 0;
-  if ($('jarvisDailyNarrative')) $('jarvisDailyNarrative').textContent = buildJarvisNarrative();
-  renderHabitLesson(currentHabitLessonIdx);
- };
-});
-if ($('jarvisSpeakBtn')) $('jarvisSpeakBtn').onclick = () => {
- speakJarvisText($('jarvisDailyNarrative')?.textContent || buildJarvisNarrative());
-};
-if ($('jarvisChatForm')) $('jarvisChatForm').onsubmit = e => {
- e.preventDefault();
- const inp = $('jarvisUserInput');
- const text = inp?.value?.trim();
- if (!text) return;
- inp.value = '';
- manualLessonOverride = true;
- const lower = text.toLowerCase();
- const greet = getJarvisGreetingPrefix();
- const user = getJarvisUserName();
- if (/jogo|jogar|hobby|descans|filme|série|serie|música|musica|lazer/.test(lower)) {
-  jarvisUserContextMode = 'hobby';
-  renderHabitLesson(2);
-  $('jarvisDailyNarrative').textContent = `"Entendido, ${user}! Registrei "${text}" como momento de Hobby e Restauração Cognitiva. Pausei cobranças de produtividade para que seu cérebro se recupere (Metodologia de Kaplan, 1995). Quando quiser retomar, ajusto seu bloco automaticamente."`;
- } else if (/travad|difícil|dificil|erro|dúvida|duvida|cansad|não consigo/.test(lower)) {
-  jarvisUserContextMode = 'stuck';
-  renderHabitLesson(0);
-  $('jarvisDailyNarrative').textContent = `"${greet}, ${user}. Sobre "${text}": detectei pelos sinais da tela e cadência que há sobrecarga na memória de trabalho (Sweller). Sugestão prática: divida isso em um único micro-passo de 15 min e faça 1 ciclo respiratório 4-4-4 antes."`;
- } else {
-  jarvisUserContextMode = 'study';
-  renderHabitLesson(1);
-  if ($('objective')) $('objective').value = text;
-  $('jarvisDailyNarrative').textContent = `"Perfeito, ${user}! Já vinculei "${text}" ao seu mapeamento contínuo (MediaPipe 468 pts + prints de contexto ativos). Recomendo usarmos blocos de 35 min com Autoexplicação ao final de cada etapa."`;
- }
-};
-if ($('cycleHabitLessonBtn')) $('cycleHabitLessonBtn').onclick = () => {
- manualLessonOverride = true;
- currentHabitLessonIdx = (currentHabitLessonIdx + 1) % CompassoHabitLessons.length;
- renderHabitLesson(currentHabitLessonIdx);
-};
-if ($('twinApplyActionBtn')) $('twinApplyActionBtn').onclick = () => {
- const act = $('twinApplyActionBtn').dataset.actionType || 'set_35';
- if (act === 'set_35') {
-  if ($('goal')) { $('goal').value = 'custom'; }
-  if ($('customGoalField')) $('customGoalField').hidden = false;
-  if ($('customGoal')) $('customGoal').value = 35;
-  if ($('goalLabel')) $('goalLabel').textContent = 'Ciclo Aprendido IA · 35 min';
-  notify('IA Preditiva: Seu bloco foi ajustado automaticamente para 35 min (seu limiar biológico real).');
- } else if (act === 'lock_single_window') {
-  if ($('singleWindowEnabled')) $('singleWindowEnabled').checked = true;
-  if ($('goal')) $('goal').value = '25';
-  syncActiveFeaturePills();
-  notify('IA Preditiva: Modo Janela Única blindado e sprint de 25 min configurado para eliminar Resíduo de Atenção.');
- } else if (act === 'open_breathe') {
-  openBreatheDialog();
- } else if (act === 'enable_posture_guard') {
-  if ($('smartphoneAlertEnabled')) $('smartphoneAlertEnabled').checked = true;
-  syncActiveFeaturePills();
-  if (!cameraOn) startCamera(true);
-  notify('IA Preditiva: Monitoramento de marcadores somáticos precoces (olhar/cervical) ativado.');
- }
-};
-renderHabitLesson(0);
+window.addEventListener('pagehide', saveAutoProfile);
+
 window.addEventListener('pagehide',stopCamera);
 let refreshing=false;setInterval(async()=>{if(refreshing)return;refreshing=true;try{await refresh();}catch(e){notify('Conexão local interrompida. Reabra o Compasso para continuar.');}finally{refreshing=false;}},1000);
 refresh().catch(e=>notify(e.message));
