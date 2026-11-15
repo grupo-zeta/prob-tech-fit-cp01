@@ -38,10 +38,10 @@ function syncActiveFeaturePills() {
   el.className = on ? 'pill-on' : 'pill-off';
   el.textContent = on ? textOn : textOff;
  };
- setPill('pillCamera', cam, 'C\u00E2mera ativa', 'C\u00E2mera desligada');
+ setPill('pillCamera', cam, 'C\u00E2mera', 'Sem c\u00E2mera');
  setPill('pillCapture', cap, 'Capturas (' + intervalLabel + ')', 'Sem capturas');
- setPill('pillGuard', grd, 'Prote\u00E7\u00E3o web', 'Prote\u00E7\u00E3o desligada');
- setPill('pillAi', ai, 'An\u00E1lise local', 'An\u00E1lise manual');
+ setPill('pillGuard', grd, 'Bloqueio web', 'Sem bloqueio');
+ setPill('pillAi', ai, 'IA local', 'IA manual');
 }
 try {
  applyLayoutMode(localStorage.getItem('compasso.layoutMode') || 'split', false);
@@ -115,6 +115,58 @@ if ($('tutorialNext')) $('tutorialNext').onclick = () => {
   showTutorialStep(tutorialStep + 1);
  }
 };
+
+let breatheTimer = null, breatheSec = 4, breathePhaseIdx = 0;
+const breathePhases = [
+ { label: 'Inspirar', cls: 'inhale' },
+ { label: 'Segurar', cls: 'hold' },
+ { label: 'Expirar', cls: 'exhale' }
+];
+function stopBreatheCycle() {
+ if (breatheTimer) { clearInterval(breatheTimer); breatheTimer = null; }
+ const circle = $('breatheCircle');
+ if (circle) circle.className = 'breathe-circle';
+ if ($('breathePhase')) $('breathePhase').textContent = 'Inspirar';
+ if ($('breatheCount')) $('breatheCount').textContent = '4s';
+ if ($('toggleBreatheRun')) $('toggleBreatheRun').textContent = 'Iniciar ciclo';
+}
+function tickBreatheDisplay() {
+ const phase = breathePhases[breathePhaseIdx];
+ const circle = $('breatheCircle');
+ if (circle) circle.className = 'breathe-circle ' + phase.cls;
+ if ($('breathePhase')) $('breathePhase').textContent = phase.label;
+ if ($('breatheCount')) $('breatheCount').textContent = breatheSec + 's';
+}
+function toggleBreatheCycle() {
+ if (breatheTimer) {
+  stopBreatheCycle();
+  return;
+ }
+ breathePhaseIdx = 0;
+ breatheSec = 4;
+ if ($('toggleBreatheRun')) $('toggleBreatheRun').textContent = 'Pausar';
+ tickBreatheDisplay();
+ breatheTimer = setInterval(() => {
+  breatheSec--;
+  if (breatheSec <= 0) {
+   breathePhaseIdx = (breathePhaseIdx + 1) % breathePhases.length;
+   breatheSec = 4;
+  }
+  tickBreatheDisplay();
+ }, 1000);
+}
+function openBreatheDialog() {
+ stopBreatheCycle();
+ if ($('breatheDialog')) $('breatheDialog').showModal();
+ toggleBreatheCycle();
+}
+if ($('breatheToggle')) $('breatheToggle').onclick = openBreatheDialog;
+if ($('openBreatheFromInsights')) $('openBreatheFromInsights').onclick = openBreatheDialog;
+if ($('toggleBreatheRun')) $('toggleBreatheRun').onclick = toggleBreatheCycle;
+for (const id of ['closeBreathe', 'doneBreathe']) {
+ if ($(id)) $(id).onclick = () => { stopBreatheCycle(); $('breatheDialog')?.close(); };
+}
+if ($('breatheDialog')) $('breatheDialog').addEventListener('close', stopBreatheCycle);
 
 let authMode = 'login';
 function setAuthTab(mode) {
@@ -194,7 +246,7 @@ const medianValue=values=>{const a=values.filter(Number.isFinite).sort((a,b)=>a-
 function calibrationStorage(){try{return window.localStorage;}catch{return null;}}
 function showCalibrationSaved(){
  $('calibrationSaved').hidden=!calibrationStored;
- $('calibrate').textContent=calibrated?'Recalibrar olhar e cabe\u00E7a':'Calibrar olhar e cabe\u00E7a';
+ $('calibrate').textContent=calibrated?'Recalibrar':'Calibrar';
 }
 let expandedApps=false,expandedWindows=false,listDay=null;
 const gazeLabels={center:'Centro',left:'Esquerda',right:'Direita',up:'Acima',down:'Abaixo'};
@@ -233,17 +285,17 @@ let goalNotified=null;
 async function refresh(){
  const r=await fetch('/api/state');if(!r.ok)throw Error('Monitor local indisponível');state=await r.json();token=state.token;
  $('timer').textContent=clock(state.elapsed);const active=!!state.active;
- $('status').textContent=active?(state.paused?'Sess\u00E3o pausada':'Em andamento'):'Pronto para iniciar';
+ $('status').textContent=active?(state.paused?'Pausado':'Em foco'):'Pronto';
  $('start').disabled=active;$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
  $('project').disabled=active;$('goal').disabled=active;
  const goal=active?state.active.goal:getGoal();
- $('goalLabel').textContent=goal?(active?`${state.active.project}, bloco de ${goal} min`:`Bloco de ${goal} min, no seu ritmo`):'Acompanhamento cont\u00EDnuo';
+ $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):'Cont\u00EDnuo';
  $('progress').style.width=goal?Math.min(100,state.elapsed/(goal*60)*100)+'%':'0%';document.querySelector('.progress').hidden=!goal;
  $('customGoal').disabled=active;
- if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;notify('Bloco concluído! Considere uma pausa. Você pode continuar ou concluir a sessão.');}
+ if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;notify('Bloco concluído! Considere uma pausa 4-4-4 ou conclua a sessão.');}
  $('window').textContent=state.live.window_title||state.live.app;$('window').title=`${state.live.app} · ${state.live.window_title||'Sem título'} · ID ${state.live.window_id||'indisponível'}`;
  if(document.activeElement!==$('category'))$('category').value=state.category;$('startup').checked=state.startup;
- $('input').textContent=state.live.hooks?(active?`${state.report.keys} teclas · ${state.report.clicks} cliques · ${state.report.moves||0} movimentos`:'Monitor pronto · sem registrar'):'Contagem de entrada indisponível';
+ $('input').textContent=state.live.hooks?(active?`${state.report.keys} teclas · ${state.report.clicks} cliques`:'Pronto'):'Indisponível';
  $('input').title=`${state.report.scroll} eventos de rolagem · ${Math.round(state.report.mouse_distance||0)} px de deslocamento (dia)`;
  $('mouseMetrics').textContent=`Mouse: x ${state.live.mouse_x??'—'}, y ${state.live.mouse_y??'—'} · ${state.report.moves||0} movimentos · ${Math.round(state.report.mouse_distance||0)} px · ${state.report.scroll} rolagens (dia).`;
  $('windowMetrics').textContent=$('window').title;
@@ -285,7 +337,7 @@ function openClassification(context,category){classificationContext=context;$('c
 $('classifyDialog').addEventListener('close',safe(async()=>{if($('classifyDialog').returnValue!=='save')return;await api('classify',{...classificationContext,category:$('classifyValue').value});await loadReport();}));
 function computePredictiveMetrics(r){
  if(!r||!r.total||r.total<30){
-  return {fatigue:null,dispersion:null,optimalRemaining:null,breakTime:'—',fatigueLevel:'Aguardando dados',dispersionLevel:'Aguardando dados',fatigueDesc:'Inicie uma sessão de estudo para o motor preditivo calcular a curva.',dispersionDesc:'Monitorando alternância de janelas e contexto...',fatigueColor:'var(--muted)',dispersionColor:'var(--muted)'};
+  return {fatigue:null,dispersion:null,optimalRemaining:null,breakTime:'Pausa 4-4-4',fatigueLevel:'Normal',dispersionLevel:'Baixa',fatigueDesc:'Estável',dispersionDesc:'Sem desvios',fatigueColor:'var(--muted)',dispersionColor:'var(--muted)'};
  }
  const mins=r.total/60;
  let fatigue=10;
@@ -314,16 +366,16 @@ function computePredictiveMetrics(r){
 
  const remainingFactor=Math.max(0,1-(fatigue/100));
  const optimalMins=Math.max(0,Math.round(45*remainingFactor));
- let breakTime='Micropausa de 3 min';
- if(fatigue>=70||mins>=60)breakTime='Pausa restauradora de 15 min';
- else if(fatigue>=45||mins>=35)breakTime='Pausa adaptativa de 5 a 8 min';
+ let breakTime='Respiração 4-4-4 (3 min)';
+ if(fatigue>=70||mins>=60)breakTime='Pausa de 15 min';
+ else if(fatigue>=45||mins>=35)breakTime='Pausa 4-4-4 (5 min)';
 
  const fatigueLevel=fatigue<35?'Baixa':fatigue<65?'Moderada':'Elevada';
- const dispersionLevel=dispersion<35?'Estável':dispersion<65?'Alerta':'Alto Risco';
+ const dispersionLevel=dispersion<35?'Estável':dispersion<65?'Alerta':'Alta';
  const fatigueColor=fatigue<35?'var(--focus)':fatigue<65?'#ffb84d':'var(--distraction)';
  const dispersionColor=dispersion<35?'var(--focus)':dispersion<65?'#ffb84d':'var(--distraction)';
- const fatigueDesc=fatigue<35?'Ritmo estável. Boa sustentação da atenção e postura alinhada.':fatigue<65?'Sinais de desaceleração motora e tempo de bloco se acumulando.':'Curva de esgotamento detectada. Recomenda-se pausar antes de iniciar novo bloco.';
- const dispersionDesc=dispersion<35?`${switches} trocas de contexto. Fluxo de trabalho linear e focado.`:dispersion<65?`Média de ${switchRate.toFixed(1)} trocas de janela/minuto. Risco de fragmentação.`:`Trocas excessivas e tempo em distrações. Feche abas secundárias.`;
+ const fatigueDesc=fatigue<35?'Ritmo estável':fatigue<65?'Desaceleração motora':'Recomenda-se pausar';
+ const dispersionDesc=dispersion<35?`${switches} trocas de janela`:dispersion<65?`${switchRate.toFixed(1)} trocas/min`:`Feche abas secundárias`;
 
  return {fatigue,dispersion,optimalRemaining:optimalMins,breakTime,fatigueLevel,dispersionLevel,fatigueDesc,dispersionDesc,fatigueColor,dispersionColor};
 }
@@ -332,31 +384,30 @@ function insights(r){
  const pred=computePredictiveMetrics(r);
  suggested=r.total>=1500&&pct(r.categories.distraction,r.total)<20?50:25;
  const reasons=[];
- if(!r.total)reasons.push('Inicie uma sessão e classifique seus aplicativos. As análises aparecem com dados reais.');
- if(pred.fatigue&&pred.fatigue>=50)reasons.push(`Alerta Preditivo: ${pred.fatigueDesc}`);
- if(pred.dispersion&&pred.dispersion>=50)reasons.push(`Alerta de Dispersão: ${pred.dispersionDesc}`);
- if(r.total&&r.categories.neutral/r.total>.4)reasons.push(`${pct(r.categories.neutral,r.total)}% do tempo está neutro. Classifique os aplicativos no relatório para tornar o índice útil.`);
- if(r.total&&r.categories.distraction/r.total>.15)reasons.push(`${duration(r.categories.distraction)} em aplicativos classificados como distração. Feche ou silencie os que não ajudam sua tarefa.`);
- if((r.window_switches||r.switches)>10)reasons.push(`${r.window_switches||r.switches} trocas de janela ou contexto registradas. Agrupar consultas pode reduzir interrupções.`);
- if(r.gaze_coverage&&r.gaze_directions.center/r.gaze_coverage<.6)reasons.push(`Olhar estimado fora do centro em ${pct(r.gaze_coverage-r.gaze_directions.center,r.gaze_coverage)}% das amostras válidas.`);
- if(r.pose_coverage&&r.posture/r.pose_coverage<.6)reasons.push('Há desvios de alinhamento nos ombros ou tronco. Confira sua ergonomia e postura.');
- if(r.face&&r.centered/r.face<.65)reasons.push(`Cabeça fora do centro em ${pct(r.face-r.centered,r.face)}% do tempo com rosto visível.`);
- if(r.total&&!reasons.length)reasons.push('Padrão motor e postural consistente com baixo risco de fadiga iminente.');
+ if(!r.total)reasons.push('Inicie um bloco para gerar indicadores.');
+ if(pred.fatigue&&pred.fatigue>=50)reasons.push(`Fadiga: ${pred.fatigueDesc}`);
+ if(pred.dispersion&&pred.dispersion>=50)reasons.push(`Dispersão: ${pred.dispersionDesc}`);
+ if(r.total&&r.categories.neutral/r.total>.4)reasons.push(`${pct(r.categories.neutral,r.total)}% neutro — classifique os apps no Relatório.`);
+ if(r.total&&r.categories.distraction/r.total>.15)reasons.push(`${duration(r.categories.distraction)} em distração.`);
+ if((r.window_switches||r.switches)>10)reasons.push(`${r.window_switches||r.switches} trocas de janela.`);
+ if(r.gaze_coverage&&r.gaze_directions.center/r.gaze_coverage<.6)reasons.push(`Olhar fora do centro (${pct(r.gaze_coverage-r.gaze_directions.center,r.gaze_coverage)}%).`);
+ if(r.pose_coverage&&r.posture/r.pose_coverage<.6)reasons.push('Desvio postural detectado.');
+ if(r.total&&!reasons.length)reasons.push('Ritmo consistente e postura alinhada.');
  const plan=[
-  `Janela de foco ideal: experimente um bloco de ${pred.optimalRemaining||suggested} minutos antes da próxima quebra de ritmo.`,
-  `Adote ${pred.breakTime.toLowerCase()} para restabelecer a capacidade de processamento cognitivo (Albulescu et al., 2022).`,
-  `Mantenha abertas somente as ferramentas essenciais para reduzir o custo cognitivo de alternância de contexto.`
+  `Próximo bloco ideal: ${pred.optimalRemaining||suggested} min.`,
+  `Intervenção: ${pred.breakTime.toLowerCase()}.`,
+  `Mantenha apenas a janela principal aberta.`
  ];
  return {index,coverage,reasons,plan,pred};
 }
 function renderInsights(){
  const r=report,a=insights(r),pred=a.pred;
  $('score').textContent=a.index??'—';
- $('scoreLabel').textContent=a.index===null?'Aguardando ≥1 min':a.index>=70?'Foco consistente':a.index>=40?'Uso balanceado':'Atenção fragmentada';
- $('analysisFacts').innerHTML=`<div>• Foco / leitura: <span class="focus">${duration(r.categories.focus+r.categories.study)}</span></div><div>• Distração: <span class="distraction">${pct(r.categories.distraction,r.total)}%</span></div><div>• Cobertura visual: ${a.coverage}% do tempo</div><div>• Curva de fadiga preditiva: ${pred.fatigue!==null?pred.fatigue+'% ('+pred.fatigueLevel+')':'calculando...'}</div><div>• Próximo bloco sugerido: ${suggested} min</div>`;
+ $('scoreLabel').textContent=a.index===null?'Sem dados':a.index>=70?'Consistente':a.index>=40?'Moderado':'Fragmentado';
+ $('analysisFacts').innerHTML=`<div>• Foco / leitura: <span class="focus">${duration(r.categories.focus+r.categories.study)}</span></div><div>• Distração: <span class="distraction">${pct(r.categories.distraction,r.total)}%</span></div><div>• Cobertura visual: ${a.coverage}%</div><div>• Próximo bloco: ${suggested} min</div>`;
  $('bottlenecks').innerHTML=a.reasons.map(t=>`<div>${esc(t)}</div>`).join('');
  $('plan').innerHTML=a.plan.map(t=>`<li>${esc(t)}</li>`).join('');
- $('applyBlock').textContent=`Aplicar bloco sugerido (${suggested} min)`;
+ $('applyBlock').textContent=`Aplicar bloco (${suggested} min)`;
  if($('predFatigueVal')){
   $('predFatigueVal').textContent=pred.fatigue!==null?`${pred.fatigue}%`:'0%';
   $('predFatigueVal').style.color=pred.fatigueColor;

@@ -10,10 +10,10 @@ function updateProvider(value,refresh=true){
  $('analysisProvider').value=value;$('reviewProvider').value=value;localStorage.setItem('compasso.analysisProvider',JSON.stringify(value));
  $('approveUpload').checked=true;$('aiAuto').checked=true;
  $('localModelField').hidden=value!=='ollama';
- $('uploadConsentText').textContent=value==='openai'?'Autorizo enviar as capturas selecionadas à OpenAI para esta análise. Pode gerar custos da API.':'Autorizo processar as capturas selecionadas no modelo local ou Ollama deste computador.';
- $('autoAnalysisLabel').textContent=value==='openai'?'Enviar capturas à OpenAI automaticamente':'Interpretar capturas no modelo local automaticamente';
- $('autoAnalysisHint').textContent=value==='openai'?'Até 8 envios por sessão. Pode gerar custos da API.':'Até 8 análises por sessão. Processamento local e privado.';
- $('providerHint').textContent=value==='local'?'Modo local: métricas e modelo preditivo integrado 100% offline.':value==='ollama'?'Ollama: interpretação de imagens no próprio PC, sem chave de API. Instale um modelo visual, como gemma3:4b.':'OpenAI: opção externa, com chave e créditos de API próprios.';
+ $('uploadConsentText').textContent=value==='openai'?'Autorizar envio à OpenAI':'Autorizar análise local';
+ $('autoAnalysisLabel').textContent=value==='openai'?'Análise automática (OpenAI)':'Análise automática local';
+ $('autoAnalysisHint').textContent='Até 8 por sessão.';
+ $('providerHint').textContent=value==='local'?'100% offline.':value==='ollama'?'Modelo local via Ollama (ex.: llama3:8b).':'Requer chave OpenAI.';
  document.querySelector('.billing-link').hidden=value!=='openai';
  if(state&&refresh)window.renderCompassoContext?.();
 }
@@ -53,14 +53,14 @@ window.renderCompassoContext=()=>{
  $('stopCaptures').disabled=!active||!c.options.capture_enabled;
  $('contextStatus').textContent=c.message;
  document.querySelector('.privacy-dot').classList.toggle('recording',active&&!state.paused&&c.options.capture_enabled);
- $('extensionStatus').textContent=c.extension_connected?'● Extensão conectada':'○ Extensão não conectada';
+ $('extensionStatus').textContent=c.extension_connected?'● Extensão ativa':'○ Extensão desconectada';
  $('extensionStatus').style.color=c.extension_connected?'var(--focus)':'var(--muted)';
  $('guardWarning').hidden=!(active&&c.options.guard_enabled&&!c.extension_connected);
  const provider=$('reviewProvider').value;
- $('aiConnection').textContent=provider==='local'?'Local · sem conta de IA':provider==='ollama'?'Ollama · no seu PC':c.key_configured?'OpenAI · chave configurada':'OpenAI · sem chave';
+ $('aiConnection').textContent=provider==='local'?'Local':provider==='ollama'?'Ollama':c.key_configured?'OpenAI ativa':'Sem chave';
  $('analyzeCaptures').disabled=c.analysis_busy||provider==='local'||(provider==='openai'&&!c.key_configured);
  $('approveUpload').disabled=provider==='local';
- $('analysisStatus').textContent=provider==='local'?'Métricas e sugestões locais estão abaixo. Para interpretar imagens, escolha um modelo opcional.':c.analysis_busy?'Analisando as capturas autorizadas…':c.message;
+ $('analysisStatus').textContent=provider==='local'?'':c.analysis_busy?'Analisando…':c.message;
  const signature=JSON.stringify(c.captures.map(x=>[x.id,x.status]));
  if(signature!==captureSignature){
   captureSignature=signature;
