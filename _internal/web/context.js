@@ -4,7 +4,7 @@ let previousContextSession=null;
 const guardSaved=saved('compasso.guard',{mode:'blocklist',domains:['youtube.com','instagram.com','tiktok.com','facebook.com','web.whatsapp.com','discord.com']});
 $('guardMode').value=guardSaved.mode;$('guardDomains').value=guardSaved.domains.join(', ');
 $('guardEnabled').checked=true;$('captureEnabled').checked=true;$('aiAuto').checked=true;$('approveUpload').checked=true;
-const preferredProvider=saved('compasso.analysisProvider','local');
+const preferredProvider=saved('compasso.analysisProvider','ollama');
 $('analysisProvider').value=['local','ollama','openai'].includes(preferredProvider)?preferredProvider:'local';$('reviewProvider').value=$('analysisProvider').value;
 function updateProvider(value,refresh=true){
  $('analysisProvider').value=value;$('reviewProvider').value=value;localStorage.setItem('compasso.analysisProvider',JSON.stringify(value));

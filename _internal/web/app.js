@@ -27,9 +27,12 @@ function applyLayoutMode(mode, shouldResize = false) {
 }
 function syncActiveFeaturePills() {
  const cam = $('cameraAuto')?.checked ?? true;
+ const smt = $('smartphoneAlertEnabled')?.checked ?? true;
+ const sng = $('singleWindowEnabled')?.checked ?? true;
  const cap = $('captureEnabled')?.checked ?? true;
  const grd = $('guardEnabled')?.checked ?? true;
  const ai = $('aiAuto')?.checked ?? true;
+ const modelName = ($('localModel')?.value || 'llama3:8b').trim() || 'llama3:8b';
  const intervalVal = $('captureInterval')?.value || '60';
  const intervalLabel = intervalVal === '30' ? '30s' : intervalVal === '120' ? '2m' : '1m';
  const setPill = (id, on, textOn, textOff) => {
@@ -39,9 +42,11 @@ function syncActiveFeaturePills() {
   el.textContent = on ? textOn : textOff;
  };
  setPill('pillCamera', cam, 'C\u00E2mera', 'Sem c\u00E2mera');
+ setPill('pillSmartphone', smt, 'Anti-smartphone', 'Sem alerta olhar');
+ setPill('pillSingleWin', sng, 'Janela \u00FAnica', 'Multijanela');
  setPill('pillCapture', cap, 'Capturas (' + intervalLabel + ')', 'Sem capturas');
  setPill('pillGuard', grd, 'Bloqueio web', 'Sem bloqueio');
- setPill('pillAi', ai, 'IA local', 'IA manual');
+ setPill('pillAi', ai, modelName, 'IA manual');
 }
 try {
  applyLayoutMode(localStorage.getItem('compasso.layoutMode') || 'split', false);
@@ -51,8 +56,9 @@ try {
 document.querySelectorAll('.layout-btn').forEach(btn => {
  btn.onclick = () => applyLayoutMode(btn.dataset.layoutMode, true);
 });
-for (const id of ['cameraAuto', 'captureEnabled', 'guardEnabled', 'aiAuto', 'captureInterval']) {
+for (const id of ['cameraAuto', 'smartphoneAlertEnabled', 'singleWindowEnabled', 'captureEnabled', 'guardEnabled', 'aiAuto', 'captureInterval', 'localModel']) {
  $(id)?.addEventListener('change', syncActiveFeaturePills);
+ $(id)?.addEventListener('input', syncActiveFeaturePills);
 }
 syncActiveFeaturePills();
 centerCompassoWindow();
@@ -249,27 +255,78 @@ for (const id of ['closeBreathe', 'doneBreathe']) {
 if ($('breatheDialog')) $('breatheDialog').addEventListener('close', stopBreatheCycle);
 
 let authMode = 'login';
+function getSavedAccounts() {
+ try {
+  const raw = localStorage.getItem('compasso.accounts');
+  const parsed = raw ? JSON.parse(raw) : [];
+  return Array.isArray(parsed) ? parsed : [];
+ } catch(_) { return []; }
+}
+function saveAccountToStorage(acc) {
+ try {
+  const list = getSavedAccounts().filter(x => x.email?.toLowerCase() !== acc.email?.toLowerCase());
+  list.unshift(acc);
+  localStorage.setItem('compasso.accounts', JSON.stringify(list.slice(0, 8)));
+ } catch(_) {}
+}
+function renderSavedAccountChips() {
+ const box = $('authSavedProfiles');
+ if (!box) return;
+ const list = getSavedAccounts();
+ if (!list.length || authMode !== 'login') {
+  box.hidden = true;
+  box.replaceChildren();
+  return;
+ }
+ box.hidden = false;
+ box.replaceChildren(...list.map(acc => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'auth-profile-chip';
+  b.textContent = `${acc.name || acc.email} (${acc.preset || 50}m)`;
+  b.onclick = () => {
+   if ($('authEmail')) $('authEmail').value = acc.email || '';
+   if ($('authName')) $('authName').value = acc.name || '';
+   if ($('authPassword')) $('authPassword').value = acc.pass || 'compasso42';
+   enterCompassoApp(acc);
+  };
+  return b;
+ }));
+}
 function setAuthTab(mode) {
  authMode = mode === 'register' ? 'register' : 'login';
  document.querySelectorAll('.auth-tab').forEach(t => {
   t.classList.toggle('active', t.dataset.authTab === authMode);
  });
- if ($('authNameWrap')) $('authNameWrap').hidden = (authMode !== 'register');
+ const isReg = (authMode === 'register');
+ if ($('authNameWrap')) $('authNameWrap').hidden = !isReg;
+ if ($('authPresetWrap')) $('authPresetWrap').hidden = !isReg;
  if ($('authSubmit')) {
-  $('authSubmit').textContent = authMode === 'register' ? 'Criar perfil e entrar' : 'Entrar no Compasso';
+  $('authSubmit').textContent = isReg ? 'Criar perfil e entrar' : 'Entrar';
  }
  if ($('authError')) $('authError').hidden = true;
+ if ($('authSuccess')) $('authSuccess').hidden = true;
+ renderSavedAccountChips();
+ if (isReg && $('authName')) setTimeout(() => $('authName')?.focus(), 40);
 }
 document.querySelectorAll('.auth-tab').forEach(btn => {
  btn.onclick = () => setAuthTab(btn.dataset.authTab);
 });
-function enterCompassoApp(user) {
+function enterCompassoApp(user, isNewProfile = false) {
  const displayName = (user?.name || user?.email?.split('@')[0] || 'Voc\u00EA').trim();
  const shortName = displayName.split(/\s+/)[0] || 'Perfil';
  if ($('userBadgeName')) $('userBadgeName').textContent = shortName;
- if ($('logoutBtn')) $('logoutBtn').title = `Conectado como ${displayName}. Clique para voltar ao login`;
+ if ($('logoutBtn')) $('logoutBtn').title = `Conectado como ${displayName}. Clique para trocar ou criar perfil`;
+ if (user?.preset && typeof window.setCompassoGoal === 'function') {
+  window.setCompassoGoal(Number(user.preset) || 50);
+ } else if (user?.preset && $('goal')) {
+  $('goal').value = String(user.preset);
+ }
  document.body.classList.remove('auth-active');
  centerCompassoWindow();
+ if (isNewProfile) {
+  notify(`Perfil "${displayName}" criado e ativado (${user.preset || 50} min).`);
+ }
  if (!localStorage.getItem('compasso.tutorialSeen')) {
   setTimeout(openTutorial, 450);
  }
@@ -281,22 +338,39 @@ try {
   if ($('authEmail') && savedUser.email) $('authEmail').value = savedUser.email;
   if ($('authName') && savedUser.name) $('authName').value = savedUser.name;
  }
+ renderSavedAccountChips();
 } catch(_) {}
 if ($('authDemoFill')) $('authDemoFill').onclick = () => {
  if ($('authName')) $('authName').value = 'Igor Santos';
- if ($('authEmail')) $('authEmail').value = 'igor@compasso.studio';
+ if ($('authEmail')) $('authEmail').value = 'igor@ufrpe.br';
  if ($('authPassword')) $('authPassword').value = 'compasso42';
+ if ($('authError')) $('authError').hidden = true;
 };
 if ($('authQuick')) $('authQuick').onclick = () => {
- const user = { name: $('authName')?.value?.trim() || 'Igor Santos', email: $('authEmail')?.value?.trim() || 'local@compasso.studio' };
+ const user = {
+  name: $('authName')?.value?.trim() || 'Igor Santos',
+  email: $('authEmail')?.value?.trim() || 'local@ufrpe.br',
+  preset: Number($('authPreset')?.value || 50)
+ };
  try { localStorage.setItem('compasso.authUser', JSON.stringify(user)); } catch(_) {}
- enterCompassoApp(user);
+ saveAccountToStorage(user);
+ enterCompassoApp(user, authMode === 'register');
 };
 if ($('authForm')) $('authForm').onsubmit = e => {
  e.preventDefault();
  const email = $('authEmail')?.value?.trim() || '';
  const pass = $('authPassword')?.value || '';
- const name = $('authName')?.value?.trim() || email.split('@')[0] || 'Usu\u00E1rio';
+ const rawName = $('authName')?.value?.trim() || '';
+ const preset = Number($('authPreset')?.value || 50);
+ if ($('authError')) $('authError').hidden = true;
+ if ($('authSuccess')) $('authSuccess').hidden = true;
+ if (authMode === 'register' && !rawName) {
+  if ($('authError')) {
+   $('authError').textContent = 'Informe seu nome para criar o perfil.';
+   $('authError').hidden = false;
+  }
+  return;
+ }
  if (!email || pass.length < 3) {
   if ($('authError')) {
    $('authError').textContent = 'Informe seu e-mail ou identificador e uma senha de pelo menos 3 caracteres.';
@@ -304,15 +378,20 @@ if ($('authForm')) $('authForm').onsubmit = e => {
   }
   return;
  }
- const user = { name, email, remember: !!$('authRemember')?.checked };
+ const existing = getSavedAccounts().find(x => x.email?.toLowerCase() === email.toLowerCase());
+ const name = rawName || existing?.name || email.split('@')[0] || 'Usu\u00E1rio';
+ const user = { name, email, pass, preset: authMode === 'register' ? preset : (existing?.preset || 50), remember: !!$('authRemember')?.checked };
+ saveAccountToStorage(user);
  try {
   if (user.remember) localStorage.setItem('compasso.authUser', JSON.stringify(user));
   else localStorage.removeItem('compasso.authUser');
  } catch(_) {}
- enterCompassoApp(user);
+ renderSavedAccountChips();
+ enterCompassoApp(user, authMode === 'register');
 };
 if ($('logoutBtn')) $('logoutBtn').onclick = () => {
  if (isWidgetMode) toggleWidgetMode();
+ renderSavedAccountChips();
  document.body.classList.add('auth-active');
 };
 const colors={focus:'#2fb380',study:'#4c7ef3',neutral:'#8b909a',distraction:'#e55353',mixed:'#8b909a'};
@@ -363,17 +442,30 @@ $('startup').onchange=safe(async()=>{try{await api('startup',{enabled:$('startup
 $('pin').onclick=safe(async()=>{pinned=!pinned;await api(pinned?'pin':'unpin');$('pin').textContent=pinned?'Fixado':'Fixar';$('pin').setAttribute('aria-pressed',pinned);});
 $('web').onclick=()=>window.open(location.origin,'_blank','noopener');
 for(const id of ['minimize','tray'])$(id).onclick=safe(async()=>{stopCamera();await api('minimize');});
-let goalNotified=null;
+let goalNotified=null, downwardGazeSince=0, lockedTaskApp=null;
+function showSmartphoneOrWindowAlert(msg){
+ if(!$('smartphoneAlertBanner'))return;
+ $('smartphoneAlertText').textContent=msg;
+ $('smartphoneAlertBanner').hidden=false;
+}
+if($('dismissSmartphoneAlert'))$('dismissSmartphoneAlert').onclick=()=>{if($('smartphoneAlertBanner'))$('smartphoneAlertBanner').hidden=true;};
 async function refresh(){
  const r=await fetch('/api/state');if(!r.ok)throw Error('Monitor local indisponível');state=await r.json();token=state.token;
  $('timer').textContent=clock(state.elapsed);const active=!!state.active;
- $('status').textContent=active?(state.paused?'Pausado':'Em foco'):'Pronto';
+ $('status').textContent=active?(state.paused?'Pausado \u00B7 4-4-4':'Fase 2 \u00B7 Execu\u00E7\u00E3o'):'Fase 1 \u00B7 Previs\u00E3o';
  $('start').disabled=active;$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
  $('project').disabled=active;$('goal').disabled=active;
  const goal=active?state.active.goal:getGoal();
  $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):'Cont\u00EDnuo';
  $('progress').style.width=goal?Math.min(100,state.elapsed/(goal*60)*100)+'%':'0%';document.querySelector('.progress').hidden=!goal;
  $('customGoal').disabled=active;
+ if(!active||state.paused){lockedTaskApp=null;downwardGazeSince=0;}
+ else if($('singleWindowEnabled')?.checked&&state.live?.app&&!/compasso/i.test(state.live.app)){
+  if(!lockedTaskApp)lockedTaskApp=state.live.app;
+  else if(state.live.app!==lockedTaskApp){
+   showSmartphoneOrWindowAlert(`Modo Janela \u00DAnica: altern\u00E2ncia detectada de "${lockedTaskApp}" para "${state.live.app}".`);
+  }
+ }
  if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;notify('Bloco concluído! Considere uma pausa 4-4-4 ou conclua a sessão.');}
  $('window').textContent=state.live.window_title||state.live.app;$('window').title=`${state.live.app} · ${state.live.window_title||'Sem título'} · ID ${state.live.window_id||'indisponível'}`;
  if(document.activeElement!==$('category'))$('category').value=state.category;$('startup').checked=state.startup;
@@ -618,6 +710,16 @@ function onResults(results){
  $('posture').textContent=data.trunk_lean===null?`${data.pose_points} pontos, quadris fora de quadro`:`Tronco ${degrees(data.trunk_lean)}, ${data.posture?'alinhado':'desvio estimado'}`;
  $('posture').title=`Ombros ${degrees(data.shoulder_tilt)}, tronco ${degrees(data.trunk_lean)}, quadris ${degrees(data.hip_tilt)}`;
  $('face').textContent=data.face?`${results.faceLandmarks.length} pontos, ${totalBlinks} piscadas`:'Rosto não detectado';
+ if(state?.active&&!state?.paused&&$('smartphoneAlertEnabled')?.checked){
+  const lookingDown=(data.gaze_direction==='down')||(data.head_pitch!==null&&data.head_pitch>15);
+  if(lookingDown){
+   if(!downwardGazeSince)downwardGazeSince=performance.now();
+   else if(performance.now()-downwardGazeSince>=5000){
+    showSmartphoneOrWindowAlert('Alerta de Smartphone: desvio ocular/cervical inferior (>5s) fora do monitor.');
+    downwardGazeSince=performance.now();
+   }
+  }else{downwardGazeSince=0;}
+ }
  $('signalMetrics').innerHTML=[['Olhar',data.gaze_direction?gazeLabels[data.gaze_direction]:'sem leitura calibrada'],['Cabeça H / V / inclinação',`${degrees(data.head_yaw)} / ${degrees(data.head_pitch)} / ${degrees(data.head_roll)}`],['Ombros / tronco',`${degrees(data.shoulder_tilt)} / ${degrees(data.trunk_lean)}`],['Quadris / pontos visíveis',`${degrees(data.hip_tilt)} / ${data.pose_points}`],['Cotovelos E / D',`${degrees(data.elbow_left)} / ${degrees(data.elbow_right)}`],['Joelhos E / D',`${degrees(data.knee_left)} / ${degrees(data.knee_right)}`]].map(([k,v])=>`<span data-reading><b>${k}</b><br>${esc(v)}</span>`).join('');
  if(performance.now()-lastCameraSend>1000){lastCameraSend=performance.now();api('camera',{...data,blinks:blinkCount}).catch(e=>notify('Falha ao registrar câmera: '+e.message));blinkCount=0;}
 }
