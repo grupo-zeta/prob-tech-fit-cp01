@@ -5,8 +5,10 @@ function centerCompassoWindow(){
  try {
   if (isWidgetMode) return;
   if (window.screen && screen.availWidth) {
-   const targetW = Math.min(880, screen.availWidth - 40);
-   const targetH = Math.min(840, screen.availHeight - 60);
+   const mode = document.body.dataset.layout || 'split';
+   const desiredW = mode === 'stack' ? 780 : 980;
+   const targetW = Math.min(desiredW, screen.availWidth - 40);
+   const targetH = Math.min(820, screen.availHeight - 60);
    const left = Math.max(0, Math.round((screen.availWidth - targetW) / 2));
    const top = Math.max(0, Math.round((screen.availHeight - targetH) / 2));
    window.resizeTo(targetW, targetH);
@@ -14,8 +16,47 @@ function centerCompassoWindow(){
   }
  } catch(_) {}
 }
+function applyLayoutMode(mode, shouldResize = false) {
+ const valid = ['split', 'hero', 'stack'].includes(mode) ? mode : 'split';
+ document.body.dataset.layout = valid;
+ try { localStorage.setItem('compasso.layoutMode', valid); } catch(_) {}
+ document.querySelectorAll('.layout-btn').forEach(b => {
+  b.classList.toggle('active', b.dataset.layoutMode === valid);
+ });
+ if (shouldResize) centerCompassoWindow();
+}
+function syncActiveFeaturePills() {
+ const cam = $('cameraAuto')?.checked ?? true;
+ const cap = $('captureEnabled')?.checked ?? true;
+ const grd = $('guardEnabled')?.checked ?? true;
+ const ai = $('aiAuto')?.checked ?? true;
+ const intervalVal = $('captureInterval')?.value || '60';
+ const intervalLabel = intervalVal === '30' ? '30s' : intervalVal === '120' ? '2m' : '1m';
+ const setPill = (id, on, textOn, textOff) => {
+  const el = $(id);
+  if (!el) return;
+  el.className = on ? 'pill-on' : 'pill-off';
+  el.textContent = (on ? '\u25CF ' : '\u25CB ') + (on ? textOn : textOff);
+ };
+ setPill('pillCamera', cam, 'C\u00E2mera', 'C\u00E2mera off');
+ setPill('pillCapture', cap, 'Capturas (' + intervalLabel + ')', 'Capturas off');
+ setPill('pillGuard', grd, 'Prote\u00E7\u00E3o Web', 'Prote\u00E7\u00E3o off');
+ setPill('pillAi', ai, 'IA Preditiva', 'IA manual');
+}
+try {
+ applyLayoutMode(localStorage.getItem('compasso.layoutMode') || 'split', false);
+} catch(_) {
+ applyLayoutMode('split', false);
+}
+document.querySelectorAll('.layout-btn').forEach(btn => {
+ btn.onclick = () => applyLayoutMode(btn.dataset.layoutMode, true);
+});
+for (const id of ['cameraAuto', 'captureEnabled', 'guardEnabled', 'aiAuto', 'captureInterval']) {
+ $(id)?.addEventListener('change', syncActiveFeaturePills);
+}
+syncActiveFeaturePills();
 centerCompassoWindow();
-window.addEventListener('load', centerCompassoWindow);
+window.addEventListener('load', () => { syncActiveFeaturePills(); centerCompassoWindow(); });
 setTimeout(centerCompassoWindow, 250);
 setTimeout(centerCompassoWindow, 750);
 document.addEventListener('click', e => {

@@ -79,3 +79,120 @@ body.widget-mode .timer-row{margin-bottom:6px!important}
 body.widget-mode .timer-row>strong{font-size:38px!important}
 body.widget-mode .actions{gap:6px!important}
 body.widget-mode .actions button{min-height:30px!important;padding:6px 4px!important;font-size:10px!important}
+
+/* Compasso 4.2 Studio Front-End — Cockpit 2 Colunas, Hero & Lista */
+main{max-width:960px;padding:14px 18px}
+body[data-layout="stack"] main{max-width:760px}
+header{padding:0 2px 10px;margin-bottom:4px}
+.window{display:flex;align-items:center;gap:8px}
+.window-modes{display:flex;gap:5px}
+.window .mode-btn{background:rgba(18,204,225,0.12);border:1px solid rgba(18,204,225,0.38);color:#8ff2fd;border-radius:7px;padding:4px 10px;min-height:28px;font-size:10px;font-weight:600}
+.window .mode-btn:hover{background:rgba(18,204,225,0.24);border-color:var(--cyan);color:#fff}
+.window-chrome{display:flex;gap:2px;background:#140f20;border:1px solid #322646;border-radius:8px;padding:2px}
+.window-chrome button{background:transparent;border:0;border-radius:6px;padding:3px 8px;min-height:24px;font-size:10px;color:var(--muted)}
+.window-chrome button:hover{background:#291e3c;color:var(--text)}
+
+#focus .page-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 2px 8px}
+#focus .page-intro h1{font-size:20px;margin:2px 0 0}
+.layout-switcher{display:flex;background:#140f20;border:1px solid #322646;border-radius:9px;padding:2px;gap:2px}
+.layout-btn{background:transparent;border:1px solid transparent;border-radius:7px;padding:4px 10px;min-height:26px;font-size:10px;color:var(--muted);font-weight:600}
+.layout-btn:hover{color:var(--text);background:#211932}
+.layout-btn.active{background:#2e2044;border-color:#8463c9;color:#f4f0fc}
+
+.timer-meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
+.timer-meta-row .preset-evidence,.timer-meta-row .camera-auto{margin:0}
+
+.context-options summary{display:flex;flex-direction:column;gap:7px;list-style:none}
+.context-options summary::-webkit-details-marker{display:none}
+.summary-top{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.summary-top b{font-size:11.5px;color:var(--text);display:flex;align-items:center;gap:6px}
+.summary-top b::before{content:'▸';color:var(--cyan);transition:transform .2s ease;display:inline-block}
+.context-options details[open] .summary-top b::before{transform:rotate(90deg)}
+.summary-hint{font-size:9.5px;color:var(--muted);font-weight:400}
+.active-pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill-on,.pill-off{font-size:9.5px;padding:3px 8px;border-radius:999px;font-weight:600;letter-spacing:.1px}
+.pill-on{background:rgba(55,208,160,0.13);border:1px solid rgba(55,208,160,0.42);color:#67e6be}
+.pill-off{background:rgba(175,163,195,0.08);border:1px solid rgba(175,163,195,0.25);color:var(--muted)}
+
+@media(min-width:720px){
+ body:not(.widget-mode):not([data-layout="stack"]) #focus:not([hidden]){
+  display:grid;
+  grid-template-columns:minmax(340px,1.04fr) minmax(320px,0.96fr);
+  gap:12px;
+  align-items:start;
+ }
+ body:not(.widget-mode):not([data-layout="stack"]) #focus>.page-intro{
+  grid-column:1 / -1;
+ }
+ body:not(.widget-mode):not([data-layout="stack"]) #focus>article{
+  margin-bottom:0;
+ }
+ body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.timer-card{
+  grid-column:1;
+  grid-row:2;
+ }
+ body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.context-options{
+  grid-column:1;
+  grid-row:3;
+ }
+ body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.camera-card{
+  grid-column:2;
+  grid-row:2;
+ }
+ body:not(.widget-mode):not([data-layout="hero"]):not([data-layout="stack"]) #focus>.signals-card{
+  grid-column:2;
+  grid-row:3;
+ }
+ body:not(.widget-mode):not([data-layout="stack"]) .camera{
+  height:195px;
+ }
+ body:not(.widget-mode):not([data-layout="stack"]) .camera #cameraPlaceholder{
+  inset:24px 10px;
+ }
+ body:not(.widget-mode):not([data-layout="stack"]) .camera #cameraPlaceholder img{
+  width:46px;
+  height:46px;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card{
+  grid-column:1 / -1;
+  grid-row:2;
+  display:grid;
+  grid-template-columns:1fr 1.25fr;
+  gap:8px 18px;
+  align-items:center;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card .timer-row{
+  grid-column:1;
+  margin-bottom:0;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card .project-row{
+  grid-column:2;
+  margin-bottom:0;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card .timer-meta-row{
+  grid-column:1;
+  margin:0;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card .actions{
+  grid-column:2;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card .cancel-session,
+ body:not(.widget-mode)[data-layout="hero"] #focus>.timer-card .progress{
+  grid-column:1 / -1;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.context-options{
+  grid-column:1 / -1;
+  grid-row:3;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.camera-card{
+  grid-column:1;
+  grid-row:4;
+ }
+ body:not(.widget-mode)[data-layout="hero"] #focus>.signals-card{
+  grid-column:2;
+  grid-row:4;
+ }
+}
+body.widget-mode .window-chrome,
+body.widget-mode .layout-switcher,
+body.widget-mode .timer-meta-row{display:none!important}
