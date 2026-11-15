@@ -36,12 +36,12 @@ function syncActiveFeaturePills() {
   const el = $(id);
   if (!el) return;
   el.className = on ? 'pill-on' : 'pill-off';
-  el.textContent = (on ? '\u25CF ' : '\u25CB ') + (on ? textOn : textOff);
+  el.textContent = on ? textOn : textOff;
  };
- setPill('pillCamera', cam, 'C\u00E2mera', 'C\u00E2mera off');
- setPill('pillCapture', cap, 'Capturas (' + intervalLabel + ')', 'Capturas off');
- setPill('pillGuard', grd, 'Prote\u00E7\u00E3o Web', 'Prote\u00E7\u00E3o off');
- setPill('pillAi', ai, 'IA Preditiva', 'IA manual');
+ setPill('pillCamera', cam, 'C\u00E2mera ativa', 'C\u00E2mera desligada');
+ setPill('pillCapture', cap, 'Capturas (' + intervalLabel + ')', 'Sem capturas');
+ setPill('pillGuard', grd, 'Prote\u00E7\u00E3o web', 'Prote\u00E7\u00E3o desligada');
+ setPill('pillAi', ai, 'An\u00E1lise local', 'An\u00E1lise manual');
 }
 try {
  applyLayoutMode(localStorage.getItem('compasso.layoutMode') || 'split', false);
@@ -71,7 +71,7 @@ function toggleWidgetMode() {
  document.body.classList.toggle('widget-mode', isWidgetMode);
  const lbl = $('widgetToggleLabel');
  if (lbl) lbl.textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
- else if ($('widgetToggle')) $('widgetToggle').textContent = isWidgetMode ? '\u2922 Expandir' : '\u23F1 Rel\u00F3gio';
+ else if ($('widgetToggle')) $('widgetToggle').textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
  try {
   if (window.screen && screen.availWidth) {
    if (isWidgetMode) {
@@ -79,7 +79,7 @@ function toggleWidgetMode() {
     if (!pinned) {
      pinned = true;
      api('pin');
-     $('pin').textContent = '\u2663 Fixado';
+     $('pin').textContent = 'Fixado';
     }
    } else {
     centerCompassoWindow();
@@ -97,7 +97,7 @@ function showTutorialStep(idx) {
  document.querySelectorAll('.tutorial-dot').forEach((d, i) => d.classList.toggle('active', i === tutorialStep));
  if ($('tutorialPrev')) $('tutorialPrev').disabled = (tutorialStep === 0);
  if ($('tutorialNext')) {
-  $('tutorialNext').textContent = (tutorialStep === totalTutorialSteps - 1) ? '\u2713 Concluir' : 'Pr\u00F3ximo \u27E9';
+  $('tutorialNext').textContent = (tutorialStep === totalTutorialSteps - 1) ? 'Concluir' : 'Pr\u00F3ximo';
  }
 }
 function openTutorial() {
@@ -124,7 +124,7 @@ function setAuthTab(mode) {
  });
  if ($('authNameWrap')) $('authNameWrap').hidden = (authMode !== 'register');
  if ($('authSubmit')) {
-  $('authSubmit').textContent = authMode === 'register' ? '\u2726 Criar Perfil e Entrar' : '\u25B6 Entrar no Compasso';
+  $('authSubmit').textContent = authMode === 'register' ? 'Criar perfil e entrar' : 'Entrar no Compasso';
  }
  if ($('authError')) $('authError').hidden = true;
 }
@@ -135,7 +135,7 @@ function enterCompassoApp(user) {
  const displayName = (user?.name || user?.email?.split('@')[0] || 'Voc\u00EA').trim();
  const shortName = displayName.split(/\s+/)[0] || 'Perfil';
  if ($('userBadgeName')) $('userBadgeName').textContent = shortName;
- if ($('logoutBtn')) $('logoutBtn').title = `Conectado como ${displayName} \u00B7 Clique para voltar ao Login`;
+ if ($('logoutBtn')) $('logoutBtn').title = `Conectado como ${displayName}. Clique para voltar ao login`;
  document.body.classList.remove('auth-active');
  centerCompassoWindow();
  if (!localStorage.getItem('compasso.tutorialSeen')) {
@@ -167,7 +167,7 @@ if ($('authForm')) $('authForm').onsubmit = e => {
  const name = $('authName')?.value?.trim() || email.split('@')[0] || 'Usu\u00E1rio';
  if (!email || pass.length < 3) {
   if ($('authError')) {
-   $('authError').textContent = 'Informe seu e-mail/usu\u00E1rio e uma senha de pelo menos 3 caracteres (ou use o Acesso R\u00E1pido).';
+   $('authError').textContent = 'Informe seu e-mail ou identificador e uma senha de pelo menos 3 caracteres.';
    $('authError').hidden = false;
   }
   return;
@@ -183,7 +183,7 @@ if ($('logoutBtn')) $('logoutBtn').onclick = () => {
  if (isWidgetMode) toggleWidgetMode();
  document.body.classList.add('auth-active');
 };
-const colors={focus:'#37d0a0',study:'#6378ff',neutral:'#a37be4',distraction:'#f56978',mixed:'#b6a8d0'};
+const colors={focus:'#2fb380',study:'#4c7ef3',neutral:'#8b909a',distraction:'#e55353',mixed:'#8b909a'};
 const labels={focus:'Foco',study:'Leitura',neutral:'Neutro',distraction:'Distração',mixed:'Misto'};
 let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, videoVisible=true, cameraGeneration=0;
 let calibrated=null, lastCameraSend=0, blinkClosed=false, blinkCount=0, totalBlinks=0, lastLandmarks=null, cameraBusy=false;
@@ -194,7 +194,7 @@ const medianValue=values=>{const a=values.filter(Number.isFinite).sort((a,b)=>a-
 function calibrationStorage(){try{return window.localStorage;}catch{return null;}}
 function showCalibrationSaved(){
  $('calibrationSaved').hidden=!calibrationStored;
- $('calibrate').textContent=calibrated?'▪ Recalibrar olhar e cabeça':'▪ Calibrar olhar e cabeça';
+ $('calibrate').textContent=calibrated?'Recalibrar olhar e cabe\u00E7a':'Calibrar olhar e cabe\u00E7a';
 }
 let expandedApps=false,expandedWindows=false,listDay=null;
 const gazeLabels={center:'Centro',left:'Esquerda',right:'Direita',up:'Acima',down:'Abaixo'};
@@ -226,18 +226,18 @@ $('category').onpointerdown=()=>{liveClassificationTarget={...state.live};};
 $('category').onfocus=()=>{liveClassificationTarget={...state.live};};
 $('category').onchange=safe(async()=>{const target=liveClassificationTarget||state.live;await api('classify',{scope:'window',app:target.app,title:target.window_title,category:$('category').value});liveClassificationTarget=null;await refresh();});
 $('startup').onchange=safe(async()=>{try{await api('startup',{enabled:$('startup').checked});}catch(e){$('startup').checked=!$('startup').checked;throw e;}});
-$('pin').onclick=safe(async()=>{pinned=!pinned;await api(pinned?'pin':'unpin');$('pin').textContent=pinned?'♧ Fixado':'♧ Fixo';$('pin').setAttribute('aria-pressed',pinned);});
+$('pin').onclick=safe(async()=>{pinned=!pinned;await api(pinned?'pin':'unpin');$('pin').textContent=pinned?'Fixado':'Fixar';$('pin').setAttribute('aria-pressed',pinned);});
 $('web').onclick=()=>window.open(location.origin,'_blank','noopener');
 for(const id of ['minimize','tray'])$(id).onclick=safe(async()=>{stopCamera();await api('minimize');});
 let goalNotified=null;
 async function refresh(){
  const r=await fetch('/api/state');if(!r.ok)throw Error('Monitor local indisponível');state=await r.json();token=state.token;
  $('timer').textContent=clock(state.elapsed);const active=!!state.active;
- $('status').textContent=active?(state.paused?'Ⅱ SESSÃO PAUSADA':'● FOCO EM ANDAMENTO'):'○ PRONTO PARA INICIAR';
- $('start').disabled=active;$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'▶ Retomar':'Ⅱ Pausar';
+ $('status').textContent=active?(state.paused?'Sess\u00E3o pausada':'Em andamento'):'Pronto para iniciar';
+ $('start').disabled=active;$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
  $('project').disabled=active;$('goal').disabled=active;
  const goal=active?state.active.goal:getGoal();
- $('goalLabel').textContent=goal?(active?`${state.active.project} · bloco de ${goal} min`:`Bloco de ${goal} min · no seu ritmo`):'Acompanhamento contínuo · disponível 24h';
+ $('goalLabel').textContent=goal?(active?`${state.active.project}, bloco de ${goal} min`:`Bloco de ${goal} min, no seu ritmo`):'Acompanhamento cont\u00EDnuo';
  $('progress').style.width=goal?Math.min(100,state.elapsed/(goal*60)*100)+'%':'0%';document.querySelector('.progress').hidden=!goal;
  $('customGoal').disabled=active;
  if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;notify('Bloco concluído! Considere uma pausa. Você pode continuar ou concluir a sessão.');}
@@ -356,9 +356,9 @@ function renderInsights(){
  $('analysisFacts').innerHTML=`<div>• Foco / leitura: <span class="focus">${duration(r.categories.focus+r.categories.study)}</span></div><div>• Distração: <span class="distraction">${pct(r.categories.distraction,r.total)}%</span></div><div>• Cobertura visual: ${a.coverage}% do tempo</div><div>• Curva de fadiga preditiva: ${pred.fatigue!==null?pred.fatigue+'% ('+pred.fatigueLevel+')':'calculando...'}</div><div>• Próximo bloco sugerido: ${suggested} min</div>`;
  $('bottlenecks').innerHTML=a.reasons.map(t=>`<div>${esc(t)}</div>`).join('');
  $('plan').innerHTML=a.plan.map(t=>`<li>${esc(t)}</li>`).join('');
- $('applyBlock').textContent=`ϟ Aplicar bloco (${suggested} min)`;
+ $('applyBlock').textContent=`Aplicar bloco sugerido (${suggested} min)`;
  if($('predFatigueVal')){
-  $('predFatigueVal').textContent=pred.fatigue!==null?`${pred.fatigue}%`:'—';
+  $('predFatigueVal').textContent=pred.fatigue!==null?`${pred.fatigue}%`:'0%';
   $('predFatigueVal').style.color=pred.fatigueColor;
   $('predFatigueBadge').textContent=pred.fatigueLevel;
   $('predFatigueBadge').style.borderColor=pred.fatigueColor;
@@ -367,7 +367,7 @@ function renderInsights(){
   $('predFatigueBar').style.background=pred.fatigueColor;
   $('predFatigueDesc').textContent=pred.fatigueDesc;
 
-  $('predDispersionVal').textContent=pred.dispersion!==null?`${pred.dispersion}%`:'—';
+  $('predDispersionVal').textContent=pred.dispersion!==null?`${pred.dispersion}%`:'0%';
   $('predDispersionVal').style.color=pred.dispersionColor;
   $('predDispersionBadge').textContent=pred.dispersionLevel;
   $('predDispersionBadge').style.borderColor=pred.dispersionColor;
@@ -376,9 +376,9 @@ function renderInsights(){
   $('predDispersionBar').style.background=pred.dispersionColor;
   $('predDispersionDesc').textContent=pred.dispersionDesc;
 
-  $('predOptimalWindow').textContent=pred.optimalRemaining!==null?`~${pred.optimalRemaining} min restantes`:'Calculando...';
+  $('predOptimalWindow').textContent=pred.optimalRemaining!==null?`Cerca de ${pred.optimalRemaining} min restantes`:'Aguardando dados';
   $('predBreakRecommendation').textContent=pred.breakTime;
-  $('predictiveStatus').textContent=pred.fatigue!==null?'● MODELO ATIVO':'○ AGUARDANDO SESSÃO';
+  $('predictiveStatus').textContent=pred.fatigue!==null?'Leitura ativa':'Aguardando sessão';
  }
 }
 $('applyBlock').onclick=()=>{if(state.active)return notify('Conclua a sessão atual para alterar o bloco.');window.setCompassoGoal?.(suggested);setTab('focus');notify(`Bloco ajustado para ${suggested} minutos. Clique em Iniciar foco quando estiver pronto.`);};
@@ -411,16 +411,16 @@ function stopCamera(){
  const wasOn=cameraOn;cameraGeneration++;cameraOn=false;
  if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;
  $('video').srcObject=null;$('video').hidden=true;$('cameraPlaceholder').hidden=false;
- $('cameraToggle').textContent='◉ Ativar câmera';$('cameraStatus').textContent='○ CÂMERA DESLIGADA · OPCIONAL';$('points').textContent='';
+ $('cameraToggle').textContent='Ativar câmera';$('cameraStatus').textContent='Câmera desligada';$('points').textContent='';
  const canvas=$('hud');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
  for(const id of ['gaze','head','posture','face']){$(id).textContent='Câmera desligada';$(id).title='';}
- $('signalMetrics').textContent='Ative a câmera durante uma sessão para ver as medidas.';
+ $('signalMetrics').textContent='Ative a câmera durante uma sessão para ver os ângulos.';
  cancelCalibration();calibrated=null;lastLandmarks=null;autoCalibrationSamples=[];lastRaw=null;
  if(wasOn&&token)api('camera_off',{},true).catch(()=>{});
 }
 async function startCamera(){
  if(!state?.active||state.paused)return notify('Inicie ou retome o foco antes de ativar a câmera.');
- const generation=++cameraGeneration;$('cameraToggle').disabled=true;$('cameraStatus').textContent='○ CARREGANDO MODELOS LOCAIS…';
+ const generation=++cameraGeneration;$('cameraToggle').disabled=true;$('cameraStatus').textContent='Carregando modelos locais…';
  try{
   const acquired=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:360},facingMode:'user'},audio:false});
   if(generation!==cameraGeneration){acquired.getTracks().forEach(t=>t.stop());return;}
@@ -431,7 +431,7 @@ async function startCamera(){
   calibrated=CompassoCalibration.load(calibrationStorage(),calibrationKey);calibrationStored=!!calibrated;
   cameraOn=true;calibrationPrompted=!!calibrated;autoCalibrationSamples=[];lastRaw=null;blinkCount=0;totalBlinks=0;blinkClosed=false;lastCameraSend=0;showCalibrationSaved();
   $('hud').width=$('video').videoWidth;$('hud').height=$('video').videoHeight;
-  $('cameraPlaceholder').hidden=true;$('video').hidden=!videoVisible;$('cameraToggle').textContent='◉ Desligar câmera';
+  $('cameraPlaceholder').hidden=true;$('video').hidden=!videoVisible;$('cameraToggle').textContent='Desligar câmera';
   stream.getVideoTracks()[0].addEventListener('ended',()=>{stopCamera();notify('A câmera foi desconectada. Você pode continuar sem ela.');});
   frame(generation);
  }catch(e){stopCamera();notify('Não foi possível abrir a câmera: '+e.message);}finally{$('cameraToggle').disabled=false;}
@@ -468,27 +468,27 @@ function onResults(results){
  ctx.clearRect(0,0,w,h);
  function segment(a,b,color,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(a.x*w,a.y*h);ctx.lineTo(b.x*w,b.y*h);ctx.stroke();}
  function point(p,color,radius=1){ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x*w,p.y*h,radius,0,Math.PI*2);ctx.fill();}
- if(results.faceLandmarks){ctx.globalAlpha=.65;for(const p of results.faceLandmarks)point(p,'#00d1e7',.75);ctx.globalAlpha=1;
+ if(results.faceLandmarks){ctx.globalAlpha=.65;for(const p of results.faceLandmarks)point(p,'#f09256',.75);ctx.globalAlpha=1;
   for(const vector of CompassoVision.hudVectors(results.faceLandmarks,data)){
    segment(vector.start,vector.end,vector.color,3.5);point(vector.start,vector.color,3.5);
    const end={x:vector.end.x*w,y:vector.end.y*h},angle=Math.atan2((vector.end.y-vector.start.y)*h,(vector.end.x-vector.start.x)*w);
    ctx.fillStyle=vector.color;ctx.beginPath();ctx.moveTo(end.x,end.y);ctx.lineTo(end.x-11*Math.cos(angle-.45),end.y-11*Math.sin(angle-.45));ctx.lineTo(end.x-11*Math.cos(angle+.45),end.y-11*Math.sin(angle+.45));ctx.closePath();ctx.fill();
   }
  }
- const p=results.poseLandmarks;if(p){for(const [a,b]of CompassoVision.POSE_CONNECTIONS)if(p[a]?.visibility>=.55&&p[b]?.visibility>=.55)segment(p[a],p[b],data.posture===false?'#ffbd64':'#a37be4');for(const joint of p)if(joint.visibility>=.55)point(joint,'#00d1e7',2.5);}
- $('points').textContent=results.faceLandmarks?`(${results.faceLandmarks.length} PTS)`:'';$('cameraStatus').textContent=data.face?'● RASTREAMENTO LOCAL ATIVO':'○ PROCURANDO ROSTO';
- $('gaze').textContent=!data.face?'Rosto não detectado':!raw.iris?'Íris indisponíveis':!calibrated?'Calibrando automaticamente…':data.gaze_direction?`${gazeLabels[data.gaze_direction]} · pelas íris`:'Sem leitura ocular confiável';
+ const p=results.poseLandmarks;if(p){for(const [a,b]of CompassoVision.POSE_CONNECTIONS)if(p[a]?.visibility>=.55&&p[b]?.visibility>=.55)segment(p[a],p[b],data.posture===false?'#ffbd64':'#2fb380');for(const joint of p)if(joint.visibility>=.55)point(joint,'#f09256',2.5);}
+ $('points').textContent=results.faceLandmarks?`(${results.faceLandmarks.length} pts)`:'';$('cameraStatus').textContent=data.face?'Rastreamento ativo':'Procurando rosto';
+ $('gaze').textContent=!data.face?'Rosto não detectado':!raw.iris?'Íris indisponíveis':!calibrated?'Calibrando automaticamente…':data.gaze_direction?`${gazeLabels[data.gaze_direction]}, pelas íris`:'Sem leitura ocular confiável';
  $('gaze').title=data.gaze_direction?`Olhar relativo calibrado: x ${data.gaze_x.toFixed(2)}, y ${data.gaze_y.toFixed(2)}. Não é uma coordenada exata na tela.`:'O olhar é calibrado automaticamente ao detectar o rosto, ou pelo botão Recalibrar.';
- $('head').textContent=data.head_yaw===null?'Cabeça sem leitura':`${data.centered?'Centralizada':'Desvio estimado'} · ${degrees(data.head_yaw)}`;
- $('head').title=`Rotação horizontal ${degrees(data.head_yaw)} · vertical ${degrees(data.head_pitch)} · inclinação ${degrees(data.head_roll)}`;
- $('posture').textContent=data.trunk_lean===null?`${data.pose_points} pontos · quadris fora de quadro`:`Tronco ${degrees(data.trunk_lean)} · ${data.posture?'alinhado':'desvio estimado'}`;
- $('posture').title=`Ombros ${degrees(data.shoulder_tilt)} · tronco ${degrees(data.trunk_lean)} · quadris ${degrees(data.hip_tilt)}`;
- $('face').textContent=data.face?`${results.faceLandmarks.length} pontos · ${totalBlinks} piscadas`:'Rosto não detectado';
+ $('head').textContent=data.head_yaw===null?'Cabeça sem leitura':`${data.centered?'Centralizada':'Desvio estimado'}, ${degrees(data.head_yaw)}`;
+ $('head').title=`Rotação horizontal ${degrees(data.head_yaw)}, vertical ${degrees(data.head_pitch)}, inclinação ${degrees(data.head_roll)}`;
+ $('posture').textContent=data.trunk_lean===null?`${data.pose_points} pontos, quadris fora de quadro`:`Tronco ${degrees(data.trunk_lean)}, ${data.posture?'alinhado':'desvio estimado'}`;
+ $('posture').title=`Ombros ${degrees(data.shoulder_tilt)}, tronco ${degrees(data.trunk_lean)}, quadris ${degrees(data.hip_tilt)}`;
+ $('face').textContent=data.face?`${results.faceLandmarks.length} pontos, ${totalBlinks} piscadas`:'Rosto não detectado';
  $('signalMetrics').innerHTML=[['Olhar',data.gaze_direction?gazeLabels[data.gaze_direction]:'sem leitura calibrada'],['Cabeça H / V / inclinação',`${degrees(data.head_yaw)} / ${degrees(data.head_pitch)} / ${degrees(data.head_roll)}`],['Ombros / tronco',`${degrees(data.shoulder_tilt)} / ${degrees(data.trunk_lean)}`],['Quadris / pontos visíveis',`${degrees(data.hip_tilt)} / ${data.pose_points}`],['Cotovelos E / D',`${degrees(data.elbow_left)} / ${degrees(data.elbow_right)}`],['Joelhos E / D',`${degrees(data.knee_left)} / ${degrees(data.knee_right)}`]].map(([k,v])=>`<span data-reading><b>${k}</b><br>${esc(v)}</span>`).join('');
  if(performance.now()-lastCameraSend>1000){lastCameraSend=performance.now();api('camera',{...data,blinks:blinkCount}).catch(e=>notify('Falha ao registrar câmera: '+e.message));blinkCount=0;}
 }
 $('cameraToggle').onclick=()=>cameraOn?stopCamera():startCamera();
-$('videoMode').onclick=()=>{videoVisible=!videoVisible;$('video').hidden=!videoVisible||!cameraOn;$('videoMode').textContent=videoVisible?'▣ Vídeo + HUD':'◎ Somente HUD';};
+$('videoMode').onclick=()=>{videoVisible=!videoVisible;$('video').hidden=!videoVisible||!cameraOn;$('videoMode').textContent=videoVisible?'Vídeo e malha':'Somente malha';};
 $('forgetCalibration').onclick=()=>{
  if(!CompassoCalibration.forget(calibrationStorage(),calibrationKey))return notify('Ative a câmera correspondente para esquecer a calibração.');
  cancelCalibration();calibrated=null;calibrationStored=false;calibrationPrompted=true;autoCalibrationSamples=[];showCalibrationSaved();
