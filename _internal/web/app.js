@@ -66,16 +66,90 @@ document.addEventListener('click', e => {
   if (!inDialog) e.target.close();
  }
 });
+let gadgetHandsUseSession = false;
+function initWin7ClockTicks() {
+ const g = $('gadgetTicks');
+ if (!g || g.childNodes.length) return;
+ const ns = 'http://www.w3.org/2000/svg';
+ for (let i = 0; i < 60; i++) {
+  if (i % 15 === 0) continue; // 12, 3, 6, 9 have numbers
+  const isHour = i % 5 === 0;
+  const angle = (i * 6 - 90) * (Math.PI / 180);
+  const rOuter = 86;
+  const rInner = isHour ? 77 : 82;
+  const line = document.createElementNS(ns, 'line');
+  line.setAttribute('x1', (110 + rInner * Math.cos(angle)).toFixed(2));
+  line.setAttribute('y1', (110 + rInner * Math.sin(angle)).toFixed(2));
+  line.setAttribute('x2', (110 + rOuter * Math.cos(angle)).toFixed(2));
+  line.setAttribute('y2', (110 + rOuter * Math.sin(angle)).toFixed(2));
+  line.setAttribute('stroke', isHour ? '#d1d5db' : '#4b5563');
+  line.setAttribute('stroke-width', isHour ? '2' : '1');
+  g.appendChild(line);
+ }
+}
+function updateWin7ClockGadget() {
+ initWin7ClockTicks();
+ const now = new Date();
+ const elapsed = Math.max(0, Number(state?.elapsed || 0));
+ const active = !!state?.active;
+ const paused = !!state?.paused;
+ const goal = active ? (state.active.goal || 0) : (typeof getGoal === 'function' ? getGoal() : 50);
+
+ let hDeg = 0, mDeg = 0, sDeg = 0;
+ if (gadgetHandsUseSession) {
+  const s = elapsed % 60;
+  const m = (elapsed / 60) % 60;
+  const h = (elapsed / 3600) % 12;
+  sDeg = s * 6;
+  mDeg = m * 6;
+  hDeg = h * 30;
+ } else {
+  const s = now.getSeconds() + now.getMilliseconds() / 1000;
+  const m = now.getMinutes() + s / 60;
+  const h = (now.getHours() % 12) + m / 60;
+  sDeg = s * 6;
+  mDeg = m * 6;
+  hDeg = h * 30;
+ }
+ if ($('gadgetHourHand')) $('gadgetHourHand').setAttribute('transform', `rotate(${hDeg.toFixed(2)} 110 110)`);
+ if ($('gadgetMinHand')) $('gadgetMinHand').setAttribute('transform', `rotate(${mDeg.toFixed(2)} 110 110)`);
+ if ($('gadgetSecHand')) $('gadgetSecHand').setAttribute('transform', `rotate(${sDeg.toFixed(2)} 110 110)`);
+ if ($('gadgetModeLabel')) $('gadgetModeLabel').textContent = gadgetHandsUseSession ? 'CRON\u00D4METRO' : 'HORA LOCAL';
+ if ($('gadgetTimer') && typeof clock === 'function') $('gadgetTimer').textContent = clock(elapsed);
+ if ($('gadgetStatus')) {
+  const st = active ? (paused ? 'PAUSADO' : 'EM FOCO') : 'PRONTO';
+  const gl = goal ? `${goal}M` : 'LIVRE';
+  $('gadgetStatus').textContent = `${st} \u00B7 ${gl}`;
+ }
+ if ($('gadgetProgressArc')) {
+  const circum = 571.77;
+  const ratio = goal > 0 ? Math.min(1, elapsed / (goal * 60)) : (active ? ((elapsed % 3600) / 3600) : 0);
+  $('gadgetProgressArc').style.strokeDashoffset = (circum * (1 - ratio)).toFixed(2);
+ }
+ if ($('gadgetToggleRun')) {
+  $('gadgetToggleRun').textContent = !active ? 'Iniciar' : (paused ? 'Retomar' : 'Pausar');
+ }
+ if ($('gadgetFinish')) {
+  $('gadgetFinish').disabled = !active;
+ }
+}
+function toggleGadgetHandsMode() {
+ gadgetHandsUseSession = !gadgetHandsUseSession;
+ updateWin7ClockGadget();
+}
 function toggleWidgetMode() {
  isWidgetMode = !isWidgetMode;
  document.body.classList.toggle('widget-mode', isWidgetMode);
  const lbl = $('widgetToggleLabel');
  if (lbl) lbl.textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
  else if ($('widgetToggle')) $('widgetToggle').textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
+ updateWin7ClockGadget();
  try {
   if (window.screen && screen.availWidth) {
    if (isWidgetMode) {
-    window.resizeTo(360, 240);
+    const gw = 260, gh = 290;
+    window.resizeTo(gw, gh);
+    window.moveTo(Math.max(0, screen.availWidth - gw - 24), 24);
     if (!pinned) {
      pinned = true;
      api('pin');
@@ -88,6 +162,11 @@ function toggleWidgetMode() {
  } catch(_) {}
 }
 if ($('widgetToggle')) $('widgetToggle').onclick = toggleWidgetMode;
+if ($('gadgetExpand')) $('gadgetExpand').onclick = toggleWidgetMode;
+if ($('gadgetRestoreBtn')) $('gadgetRestoreBtn').onclick = toggleWidgetMode;
+if ($('gadgetHandsMode')) $('gadgetHandsMode').onclick = toggleGadgetHandsMode;
+if ($('gadgetDialClick')) $('gadgetDialClick').onclick = toggleGadgetHandsMode;
+setInterval(updateWin7ClockGadget, 250);
 
 let tutorialStep = 0;
 const totalTutorialSteps = 4;
@@ -161,6 +240,7 @@ function openBreatheDialog() {
  toggleBreatheCycle();
 }
 if ($('breatheToggle')) $('breatheToggle').onclick = openBreatheDialog;
+if ($('gadgetBreathe')) $('gadgetBreathe').onclick = openBreatheDialog;
 if ($('openBreatheFromInsights')) $('openBreatheFromInsights').onclick = openBreatheDialog;
 if ($('toggleBreatheRun')) $('toggleBreatheRun').onclick = toggleBreatheCycle;
 for (const id of ['closeBreathe', 'doneBreathe']) {
@@ -273,6 +353,8 @@ function getGoal(strict=false){const mode=$('goal').value;if(mode==='continuous'
 $('start').onclick=safe(async()=>{await api('start',{project:$('project').value,goal:getGoal(true),...(window.contextStartOptions?.()||{})});await refresh();if($('cameraAuto').checked)await startCamera();});
 $('pause').onclick=safe(async()=>{await api('pause');if(stream)stopCamera();await refresh();if(!state.paused&&$('cameraAuto').checked)await startCamera();});
 $('finish').onclick=safe(async()=>{await api('finish');stopCamera();await refresh();notify('Sessão concluída. O histórico foi salvo no PC.');});
+if($('gadgetToggleRun'))$('gadgetToggleRun').onclick=()=>{if(!state?.active)$('start').click();else $('pause').click();};
+if($('gadgetFinish'))$('gadgetFinish').onclick=()=>$('finish').click();
 $('cancelSession').onclick=safe(async()=>{if(!confirm('Cancelar esta sessão? O tempo, as capturas e os registros desta sessão serão descartados.'))return;await api('cancel');stopCamera();await refresh();notify('Sessão cancelada. Você pode começar outra quando quiser.');});
 $('category').onpointerdown=()=>{liveClassificationTarget={...state.live};};
 $('category').onfocus=()=>{liveClassificationTarget={...state.live};};
@@ -304,6 +386,7 @@ async function refresh(){
  if($('reportDay').value===state.report.day){report=state.report;if(tab!=='focus')renderReport();}
  window.renderCompassoContext?.();
  window.renderStartupPrompt?.();
+ updateWin7ClockGadget();
 }
 async function loadReport(){const r=await fetch('/api/report?day='+encodeURIComponent($('reportDay').value));report=await r.json();if(!r.ok)throw Error(report.error);renderReport();}
 $('reportDay').onchange=safe(loadReport);

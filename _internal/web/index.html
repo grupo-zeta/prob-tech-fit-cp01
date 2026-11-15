@@ -47,6 +47,85 @@
 </div>
 </section>
 <main>
+<section id="win7ClockGadget" class="win7-gadget" aria-label="Gadget de Relógio Compasso">
+<div class="win7-gadget-wrap">
+<div class="win7-side-controls">
+<button type="button" id="gadgetExpand" class="win7-ctrl-btn" title="Voltar ao Compasso completo">↗</button>
+<button type="button" id="gadgetHandsMode" class="win7-ctrl-btn" title="Alternar ponteiros: Hora local / Sessão">⇄</button>
+<button type="button" id="gadgetBreathe" class="win7-ctrl-btn" title="Micropausa 4-4-4">◎</button>
+</div>
+<div class="win7-clock-shell" id="gadgetDialClick" title="Clique para alternar ponteiros entre Hora Local e Cronômetro">
+<svg class="win7-clock-svg" viewBox="0 0 220 220" aria-hidden="true">
+<defs>
+<radialGradient id="w7DialGrad" cx="50%" cy="42%" r="55%">
+<stop offset="0%" stop-color="#1e2430"/>
+<stop offset="68%" stop-color="#0f1319"/>
+<stop offset="100%" stop-color="#07090c"/>
+</radialGradient>
+<linearGradient id="w7BezelOuter" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" stop-color="#4b5565"/>
+<stop offset="45%" stop-color="#1f252e"/>
+<stop offset="100%" stop-color="#0b0d12"/>
+</linearGradient>
+<linearGradient id="w7BezelInner" x1="0%" y1="100%" x2="100%" y2="0%">
+<stop offset="0%" stop-color="#384150"/>
+<stop offset="100%" stop-color="#12161d"/>
+</linearGradient>
+<linearGradient id="w7GlassShine" x1="50%" y1="0%" x2="50%" y2="100%">
+<stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
+<stop offset="55%" stop-color="rgba(255,255,255,0.03)"/>
+<stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+</linearGradient>
+</defs>
+<!-- Bezel & Dial -->
+<circle cx="110" cy="110" r="107" fill="url(#w7BezelOuter)" stroke="#050608" stroke-width="1.5"/>
+<circle cx="110" cy="110" r="100" fill="url(#w7BezelInner)" stroke="#2f3744" stroke-width="1"/>
+<circle cx="110" cy="110" r="95" fill="url(#w7DialGrad)"/>
+<!-- Session Progress Ring -->
+<circle cx="110" cy="110" r="91" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="3"/>
+<circle id="gadgetProgressArc" cx="110" cy="110" r="91" fill="none" stroke="#f97316" stroke-width="3" stroke-linecap="round" stroke-dasharray="571.77" stroke-dashoffset="571.77" transform="rotate(-90 110 110)"/>
+<!-- Ticks group populated/augmented by JS + static cardinal markers -->
+<g id="gadgetTicks" stroke="#6b7280" stroke-linecap="round"></g>
+<!-- Cardinal Numbers (Windows 7 Gadget style) -->
+<text x="110" y="36" text-anchor="middle" class="w7-num">12</text>
+<text x="188" y="115" text-anchor="middle" class="w7-num">3</text>
+<text x="110" y="194" text-anchor="middle" class="w7-num">6</text>
+<text x="32" y="115" text-anchor="middle" class="w7-num">9</text>
+<!-- Upper Brand Subdial -->
+<text x="110" y="64" text-anchor="middle" class="w7-brand">compasso<tspan fill="#f97316">.</tspan></text>
+<text x="110" y="75" text-anchor="middle" id="gadgetModeLabel" class="w7-submode">HORA LOCAL</text>
+<!-- Lower Digital Stopwatch Sub-Visor -->
+<rect x="64" y="132" width="92" height="34" rx="7" fill="#090b0f" stroke="#262c37" stroke-width="1"/>
+<text x="110" y="148" text-anchor="middle" id="gadgetTimer" class="w7-digital">00:00:00</text>
+<text x="110" y="160" text-anchor="middle" id="gadgetStatus" class="w7-status">PRONTO · 50M</text>
+<!-- Analog Hands -->
+<g id="gadgetHourHand" transform="rotate(0 110 110)">
+<line x1="110" y1="120" x2="110" y2="62" stroke="#000" stroke-width="6" stroke-linecap="round" opacity=".35"/>
+<line x1="110" y1="120" x2="110" y2="62" stroke="#e5e7eb" stroke-width="4.5" stroke-linecap="round"/>
+<line x1="110" y1="108" x2="110" y2="68" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"/>
+</g>
+<g id="gadgetMinHand" transform="rotate(0 110 110)">
+<line x1="110" y1="124" x2="110" y2="42" stroke="#000" stroke-width="4.5" stroke-linecap="round" opacity=".35"/>
+<line x1="110" y1="124" x2="110" y2="42" stroke="#f3f4f6" stroke-width="3.2" stroke-linecap="round"/>
+</g>
+<g id="gadgetSecHand" transform="rotate(0 110 110)">
+<line x1="110" y1="130" x2="110" y2="32" stroke="#f97316" stroke-width="1.6" stroke-linecap="round"/>
+<circle cx="110" cy="123" r="2.6" fill="#f97316"/>
+</g>
+<!-- Center Cap -->
+<circle cx="110" cy="110" r="6" fill="#262c37" stroke="#e5e7eb" stroke-width="1.5"/>
+<circle cx="110" cy="110" r="2.5" fill="#f97316"/>
+<!-- Windows 7 Curved Glass Reflection -->
+<path d="M 30 85 A 86 78 0 0 1 190 85 A 92 62 0 0 0 30 85 Z" fill="url(#w7GlassShine)" pointer-events="none"/>
+</svg>
+</div>
+<div class="win7-gadget-dock">
+<button type="button" id="gadgetToggleRun" class="primary win7-dock-btn">Iniciar</button>
+<button type="button" id="gadgetFinish" class="win7-dock-btn" disabled>Concluir</button>
+<button type="button" id="gadgetRestoreBtn" class="win7-dock-btn" title="Abrir painel completo">Painel</button>
+</div>
+</div>
+</section>
 <header><div class="brand"><img class="logo" src="brand.svg" alt="Marca Compasso"><div><b>compasso<span class="dot">.</span></b><small class="tagline">foco no seu ritmo</small></div><span class="version">4.2</span></div><div class="window"><div class="window-modes"><button id="breatheToggle" class="mode-btn" type="button" title="Micropausa respiratória 4-4-4"><svg class="btn-svg" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="6.5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/><circle cx="10" cy="10" r="2.8" fill="#f97316"/></svg><span>4-4-4</span></button><button id="widgetToggle" class="mode-btn" title="Modo Widget (Relógio compacto)"><svg class="btn-svg" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.5"/><path d="M10 6.8v3.9l2.6 1.6M7.8 2.2h4.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span id="widgetToggleLabel">Relógio</span></button><button id="openTutorial" class="mode-btn" title="Guia rápido"><svg class="btn-svg compass-svg" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5" opacity=".85"/><ellipse cx="10" cy="10" rx="8.8" ry="3.2" transform="rotate(-36 10 10)" stroke="#f97316" stroke-width="1.2" opacity=".9"/><polygon points="13.6,6.4 11.1,11.1 6.4,13.6 8.9,8.9" fill="currentColor"/><circle cx="10" cy="10" r="1.3" fill="#f97316"/></svg><span>Guia</span></button><button id="logoutBtn" class="mode-btn user-mode-btn" title="Trocar perfil"><svg class="btn-svg" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="7" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 16.2c1.1-2.5 3.1-3.8 5.5-3.8s4.4 1.3 5.5 3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span id="userBadgeName">Perfil</span></button></div><div class="window-chrome"><button id="pin" title="Fixar janela">Fixar</button><button id="web" title="Abrir no navegador">Web</button><button id="minimize" title="Minimizar">−</button></div></div></header>
 <div class="top-bar-row">
 <nav aria-label="Seções"><button class="selected" data-tab="focus">1. Foco</button><button data-tab="report">2. Relatório</button><button data-tab="insights">3. Mentoria</button></nav>
