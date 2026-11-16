@@ -36,15 +36,10 @@
 <span>Senha</span>
 <input id="authPassword" type="password" maxlength="80" placeholder="••••••••" required>
 </label>
-<label id="authPresetWrap" class="auth-field" hidden>
-<span>Ritmo inicial (Aprendizagem Autorregulada)</span>
-<select id="authPreset">
-<option value="50" selected>Estudo Profundo · 50 min</option>
-<option value="25">Pomodoro Clássico · 25 min</option>
-<option value="60">Leitura Científica · 60 min</option>
-<option value="90">Laboratório / Código · 90 min</option>
-</select>
-</label>
+<div id="authPresetWrap" class="auth-auto-badge" hidden>
+<b>Aprendizagem automática por IA</b>
+<small>Você não precisa escolher Pomodoro nem modelos fixos — o Compasso aprende pelo seu uso real do PC.</small>
+</div>
 <div class="auth-options-row">
 <label class="auth-remember"><input id="authRemember" type="checkbox" checked> <span>Manter conectado</span></label>
 <button type="button" id="authDemoFill" class="auth-demo-btn">Preencher demo</button>
@@ -150,13 +145,10 @@
 <button type="button" id="dismissSmartphoneAlert">OK</button>
 </div>
 <section id="focus" class="page">
-<article class="timer-card"><div class="timer-row"><strong id="timer">00:00:00</strong><div><span class="badge" id="status">Fase 1 · Previsão</span><small id="goalLabel">50 min</small></div></div>
-<div class="project-row"><label class="project"><span class="sr">Projeto</span><select id="project"><option>Foco Geral</option></select></label><button id="addProject">+ Projeto</button><label><span class="sr">Duração</span><select id="goal"><option value="25">25 min</option><option value="50" selected>50 min</option><option value="60">60 min</option><option value="90">90 min</option><option value="120">2 h</option><option value="240">4 h</option><option value="1440">24 h</option><option value="custom">Outro</option><option value="continuous">Contínuo</option></select></label></div>
-<label id="customGoalField" class="custom-time" hidden>Minutos <input id="customGoal" type="number" min="1" max="1440" step="1" value="50"></label><div class="timer-meta-row"><details class="preset-evidence"><summary id="presetSummary">Referência do perfil</summary><p id="presetMethod"></p><p id="presetEvidence"></p><a id="presetSource" target="_blank" rel="noopener"></a></details><div style="display:flex;gap:10px;align-items:center"><label class="camera-auto"><input id="aiAutopilot" type="checkbox" checked> Auto-Piloto IA (Zero-Clique)</label><label class="camera-auto"><input id="cameraAuto" type="checkbox" checked> Câmera auto</label></div></div><div class="actions"><button class="primary" id="start">Iniciar foco</button><button id="pause" disabled>Pausar</button><button id="finish" disabled>Concluir</button><button id="cancelSession" class="cancel-btn" disabled>Cancelar</button></div><div class="progress"><i id="progress"></i></div></article>
 <article class="cognitive-twin-card" id="cognitiveTwinCard">
 <div class="section-heading">
-<h2>Copiloto Autônomo · aprende com o seu uso, sem cliques</h2>
-<span class="badge" id="twinConfidenceBadge">Aprendendo seu ritmo</span>
+<h2>Copiloto IA · Aprende como você usa o PC</h2>
+<span class="badge" id="twinConfidenceBadge">Aprendendo seu uso</span>
 </div>
 <div class="jarvis-briefing-box">
 <div class="jarvis-briefing-head">
@@ -169,14 +161,14 @@
 </div>
 <div class="twin-learned-grid">
 <div class="twin-stat-box">
-<small>1. SEU LIMIAR REAL DE FOCO</small>
+<small>1. SEU RITMO REAL APRENDIDO</small>
 <strong id="twinRealCycle">—</strong>
 <span id="twinRealCycleSub" class="tiny muted">Aprendendo com seus ciclos</span>
 </div>
 <div class="twin-stat-box">
-<small>2. COMO FOI SEU DIA</small>
+<small>2. PADRÃO DE USO NO PC</small>
 <strong id="twinTriggerPattern">—</strong>
-<span id="twinTriggerSub" class="tiny muted">Apps, estudo e hobbies</span>
+<span id="twinTriggerSub" class="tiny muted">Apps, foco, mensagens e hobbies</span>
 </div>
 <div class="twin-stat-box">
 <small>3. PREDIÇÃO PRÓXIMOS MINUTOS</small>
@@ -188,15 +180,18 @@
 <div class="twin-lesson-box">
 <div class="twin-lesson-top">
 <span class="twin-lesson-tag" id="twinLessonTag">OBSERVANDO</span>
-<b id="twinConceptTitle">Aprendizagem silenciosa do seu ritmo</b>
+<b id="twinConceptTitle">Aprendizagem silenciosa do seu cotidiano</b>
 </div>
-<p id="twinLessonText">Nenhuma intervenção necessária agora. Vou falar com você só quando o seu uso indicar que vale a pena.</p>
+<p id="twinLessonText">Você não precisa escolher nenhum método pronto: a IA aprende como você alterna apps, digita e descansa para sugerir melhorias sob medida.</p>
 <div class="twin-lesson-footer">
 <span id="twinHabitEvidence" class="tiny muted">Ação automática: nenhuma.</span>
 </div>
 </div>
-<ol id="jarvisFeed" class="jarvis-feed" aria-label="O que a IA fez sozinha"></ol>
+<ol id="jarvisFeed" class="jarvis-feed" aria-label="O que a IA aprendeu e fez sozinha"></ol>
 </article>
+<article class="timer-card"><div class="timer-row"><strong id="timer">00:00:00</strong><div><span class="badge" id="status">Fase 1 · Observação</span><small id="goalLabel">Modo IA · Contínuo</small></div></div>
+<div class="timer-meta-row"><span class="tiny muted" id="autoModeSummary">Monitoramento automático em segundo plano · sem modelo fixo</span><div style="display:flex;gap:10px;align-items:center"><label class="camera-auto"><input id="aiAutopilot" type="checkbox" checked> Auto-Piloto IA (Zero-Clique)</label><label class="camera-auto"><input id="cameraAuto" type="checkbox" checked> Câmera auto</label></div></div><div class="actions"><button class="primary" id="start">Iniciar monitoramento</button><button id="pause" disabled>Pausar</button><button id="finish" disabled>Concluir</button><button id="cancelSession" class="cancel-btn" disabled>Cancelar</button></div><div class="progress"><i id="progress"></i></div>
+<details class="manual-override-details"><summary>Ajuste manual opcional (se preferir cronômetro ou projeto fixo)</summary><div class="project-row" style="margin-top:8px"><label class="project"><span class="sr">Atividade</span><select id="project"><option>Uso Contínuo (IA · Automático)</option></select></label><button id="addProject">+ Atividade</button><label><span class="sr">Duração</span><select id="goal"><option value="continuous" selected>Automático IA (Contínuo)</option><option value="25">25 min</option><option value="50">50 min</option><option value="60">60 min</option><option value="90">90 min</option><option value="120">2 h</option><option value="240">4 h</option><option value="1440">24 h</option><option value="custom">Outro</option></select></label></div><label id="customGoalField" class="custom-time" hidden>Minutos <input id="customGoal" type="number" min="1" max="1440" step="1" value="35"></label><details class="preset-evidence"><summary id="presetSummary">Referência opcional</summary><p id="presetMethod"></p><p id="presetEvidence"></p><a id="presetSource" target="_blank" rel="noopener"></a></details></details></article>
 <article class="context-options"><details id="contextDetails"><summary><div class="summary-top"><b>Configuração do bloco</b><span class="summary-hint">Editar</span></div><div class="active-pills" id="activeFeaturePills"><span class="pill-on" id="pillCamera">Câmera</span><span class="pill-on" id="pillSmartphone">Anti-smartphone</span><span class="pill-on" id="pillSingleWin">Janela única</span><span class="pill-on" id="pillGuard">Bloqueio web</span><span class="pill-on" id="pillCapture">Capturas (1m)</span><span class="pill-on" id="pillAi">llama3:8b</span></div></summary><div class="option-content"><label class="option-toggle"><input id="smartphoneAlertEnabled" type="checkbox" checked><span><b>Alerta de smartphone (olhar baixo &gt;5s)</b><small>Detecta inclinação persistente para fora do monitor.</small></span></label><label class="option-toggle"><input id="singleWindowEnabled" type="checkbox" checked><span><b>Modo janela única</b><small>Alerta ao alternar para fora da janela principal da tarefa.</small></span></label><label class="option-toggle"><input id="startupPromptEnabled" type="checkbox"><span>Exibir pop-up manual ao iniciar o Windows (desativado no modo contínuo)</span></label><label class="option-toggle"><input id="jarvisVoiceEnabled" type="checkbox" checked><span><b>Copiloto fala em voz alta</b><small>Saudação e intervenções importantes, em português, sem internet.</small></span></label><label class="field-label" for="objective">Objetivo da sessão (Previsão)</label><textarea id="objective" rows="2" maxlength="1500" placeholder="Ex.: Resolver lista 3 de circuitos."></textarea><label class="option-toggle"><input id="guardEnabled" type="checkbox" checked><span><b>Bloqueio de sites distrativos</b><small>Via extensão do navegador.</small></span></label><div class="guard-fields"><select id="guardMode" aria-label="Modo de proteção"><option value="blocklist">Bloquear lista abaixo</option><option value="allowlist">Permitir apenas a lista</option></select><textarea id="guardDomains" rows="2" aria-label="Domínios" placeholder="youtube.com, instagram.com"></textarea><div class="section-heading"><span class="muted tiny" id="extensionStatus">Extensão desconectada</span><button id="extensionGuide">Instalar</button></div></div><label class="option-toggle"><input id="captureEnabled" type="checkbox" checked><span><b>Capturas periódicas de janela</b></span></label><label class="capture-interval">Intervalo <select id="captureInterval"><option value="30">30s</option><option value="60" selected>1 min</option><option value="120">2 min</option></select></label><label class="field-label" for="analysisProvider">Motor de análise</label><select id="analysisProvider" class="provider-select"><option value="local">Local (Instantâneo)</option><option value="ollama" selected>Ollama (llama3:8b)</option><option value="openai">OpenAI API</option></select><label id="localModelField" class="field-label">Modelo Ollama <input id="localModel" value="llama3:8b" maxlength="80"></label><p class="muted tiny" id="providerHint" hidden></p><label class="option-toggle"><input id="aiAuto" type="checkbox" checked><span><b id="autoAnalysisLabel">Análise automática</b><small id="autoAnalysisHint">Até 8 por sessão.</small></span></label></div></details><p id="guardWarning" class="guard-warning" role="status" hidden>Extensão desconectada.</p><div class="privacy-state" hidden><span class="privacy-dot"></span><span id="contextStatus">Ativo</span></div><div class="context-actions" hidden><button id="captureNow" disabled>Capturar</button><button id="stopCaptures" disabled>Parar</button></div></article>
 <article class="camera-card"><div class="section-heading"><h2>Visão na borda <span id="points"></span></h2><div class="cam-header-btns"><button id="calibrate">Calibrar</button><button id="videoMode">Vídeo + HUD</button></div></div><div class="camera"><video id="video" autoplay muted playsinline hidden></video><canvas id="hud" width="800" height="360"></canvas><span id="cameraStatus">Desligada</span><div id="cameraPlaceholder"><img src="brand.svg" alt=""><p>Câmera pronta</p><small>Processamento 100% local</small></div></div><div class="camera-controls"><div class="arrow-legend"><span class="gaze-arrow">↗ Olhar</span><span class="head-arrow">↗ Cabeça</span></div><button id="cameraToggle">Ativar câmera</button><span id="cameraHelp" hidden>Local</span></div><p id="calibrationSaved" class="calibration-saved" hidden>Calibrado. <button id="forgetCalibration" type="button">Resetar</button></p></article>
 <article class="signals-card"><div class="section-heading"><h2>Telemetria em tempo real</h2><label class="classify-inline"><select id="category" title="Classificar janela atual"><option value="neutral">Janela: Neutra</option><option value="focus">Janela: Foco</option><option value="study">Janela: Leitura</option><option value="distraction">Janela: Distração</option></select></label></div><div class="signals"><div><b>1. Olhar</b><small id="gaze">Inativo</small></div><div><b>2. Cabeça</b><small id="head">Inativo</small></div><div><b>3. Postura</b><small id="posture">Inativo</small></div><div><b>4. Piscadas</b><small id="face">Inativo</small></div><div><b>5. Cadência</b><small id="input">Aguardando</small></div><div><b>6. Janela ativa</b><small id="window">Conectando…</small></div></div><details class="signal-details"><summary>Medidas brutas</summary><div id="signalMetrics" class="muted tiny">Sem leituras no momento.</div><p id="mouseMetrics" class="muted tiny"></p><p id="windowMetrics" class="muted tiny"></p></details></article>
@@ -210,7 +205,7 @@
 </section>
 <section id="insights" class="page" hidden>
 <article class="predictive-card"><div class="section-heading"><h2>Diagnóstico de fadiga e dispersão</h2><span id="predictiveStatus" class="badge">Aguardando</span></div><div class="predictive-metrics-grid"><div class="pred-box"><small>FADIGA ESTIMADA</small><div class="pred-val"><strong id="predFatigueVal">0%</strong><span id="predFatigueBadge" class="pred-badge focus">Normal</span></div><div class="progress"><i id="predFatigueBar" style="width:0%"></i></div><span id="predFatigueDesc" class="tiny muted">Estável</span></div><div class="pred-box"><small>DISPERSÃO</small><div class="pred-val"><strong id="predDispersionVal">0%</strong><span id="predDispersionBadge" class="pred-badge focus">Baixa</span></div><div class="progress"><i id="predDispersionBar" style="width:0%"></i></div><span id="predDispersionDesc" class="tiny muted">Sem desvios</span></div></div><div class="prediction-window"><div class="window-item"><span>Janela ótima:</span><b id="predOptimalWindow">50 min</b></div><div class="window-item"><span>Intervenção sugerida:</span><b id="predBreakRecommendation">Pausa 4-4-4</b></div></div></article>
-<article><h2>Índice de foco e plano em 3 etapas</h2><div class="analysis"><div class="score"><strong id="score">0</strong><small>SCORE</small><b id="scoreLabel">Aguardando</b></div><div id="analysisFacts"></div></div><div id="bottlenecks" class="recommendations" style="margin-top:10px"></div><ol id="plan" style="margin-top:10px"></ol><div class="actions insight-actions" style="margin-top:12px"><button class="primary" id="applyBlock">Aplicar bloco (25 min)</button><button type="button" id="openBreatheFromInsights">Respiração 4-4-4</button><button id="recalculate">Atualizar</button><button id="aiPdf">PDF</button></div></article>
+<article><h2>Índice de foco e plano em 3 etapas</h2><div class="analysis"><div class="score"><strong id="score">0</strong><small>SCORE</small><b id="scoreLabel">Aguardando</b></div><div id="analysisFacts"></div></div><div id="bottlenecks" class="recommendations" style="margin-top:10px"></div><ol id="plan" style="margin-top:10px"></ol><div class="actions insight-actions" style="margin-top:12px"><button class="primary" id="applyBlock">Aplicar ritmo aprendido</button><button type="button" id="openBreatheFromInsights">Respiração 4-4-4</button><button id="recalculate">Atualizar</button><button id="aiPdf">PDF</button></div></article>
 <details class="optional-vision-details"><summary>Copiloto visual (Ollama Llama 3 / OpenAI)</summary><div class="ai-context-card" style="margin-top:8px;"><div class="section-heading"><h3>Revisão de capturas</h3><span id="aiConnection" class="tiny muted">Local</span></div><select id="reviewProvider" class="provider-select"><option value="local">Local</option><option value="ollama">Ollama (Llama 3 8B)</option><option value="openai">OpenAI API</option></select><p id="selectionCount" class="muted tiny">Selecione capturas na aba Relatório.</p><label class="option-toggle"><input id="approveUpload" type="checkbox" checked><span><small id="uploadConsentText">Autorizar análise local</small></span></label><button class="primary full" id="analyzeCaptures" disabled>Analisar capturas</button><p class="muted tiny" id="analysisStatus"></p><a class="billing-link" href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener" hidden>API</a><div id="aiReviews"></div></div></details>
 </section>
 <footer><label><input type="checkbox" id="startup" checked> Iniciar automaticamente com o Windows (Mapeamento Contínuo)</label><button id="tray">Minimizar para a bandeja</button></footer>
@@ -228,25 +223,25 @@
 <dialog id="calibrationDialog" aria-labelledby="calibrationTitle"><h2 id="calibrationTitle">Calibrar olhar e cabeça</h2><p id="calibrationHint">Olhe para o centro e clique em Centralizar rápido, ou acompanhe os 5 pontos.</p><div id="calibrationTarget" aria-hidden="true">⊕</div><div class="calibration-controls"><span id="calibrationStep">1 / 5 · Centro</span><button id="cancelCalibration">Cancelar</button><button id="quickCalibration" type="button">Centralizar rápido</button><button class="primary" id="captureCalibration">5 pontos</button></div></dialog>
 <dialog id="extensionDialog"><h2>Extensão do navegador</h2><ol><li>Abra as extensões do navegador em modo desenvolvedor.</li><li>Clique em “Carregar sem compactação” e selecione a pasta abaixo.</li></ol><div class="actions"><button id="showExtensionFolder">Abrir pasta</button><button id="closeExtensionGuide" class="primary">Fechar</button></div></dialog>
 <dialog id="capturePreview"><h2>Captura</h2><img id="capturePreviewImage" alt="Captura"><button id="closeCapturePreview">Fechar</button></dialog>
-<dialog id="startupDialog"><img src="brand.svg" class="startup-logo" alt=""><h2>Qual é o foco de hoje?</h2><label class="field-label">Projeto <select id="startupProject"></select></label><label class="field-label">Duração <select id="startupDuration"><option value="25">25 min</option><option value="50" selected>50 min</option><option value="90">90 min</option><option value="custom">Outro</option><option value="continuous">Contínuo</option></select></label><label id="startupCustomField" class="field-label" hidden>Minutos <input id="startupCustom" type="number" min="1" max="1440" value="50"></label><label class="option-toggle"><input id="startupCamera" type="checkbox" checked><span>Ativar câmera</span></label><label class="option-toggle"><input id="showStartupPrompt" type="checkbox" checked><span>Mostrar ao iniciar</span></label><div class="actions"><button id="startupLater">Depois</button><button class="primary" id="startupBegin">Iniciar</button></div></dialog>
+<dialog id="startupDialog"><img src="brand.svg" class="startup-logo" alt=""><h2>Observação contínua</h2><label class="field-label">Atividade <select id="startupProject"></select></label><label class="field-label">Modo <select id="startupDuration"><option value="continuous" selected>Automático IA (Contínuo)</option><option value="25">25 min</option><option value="50">50 min</option><option value="90">90 min</option><option value="custom">Outro</option></select></label><label id="startupCustomField" class="field-label" hidden>Minutos <input id="startupCustom" type="number" min="1" max="1440" value="35"></label><label class="option-toggle"><input id="startupCamera" type="checkbox" checked><span>Ativar câmera</span></label><label class="option-toggle"><input id="showStartupPrompt" type="checkbox" checked><span>Mostrar ao iniciar</span></label><div class="actions"><button id="startupLater">Depois</button><button class="primary" id="startupBegin">Iniciar</button></div></dialog>
 <dialog id="tutorialDialog" class="tutorial-dialog" aria-labelledby="tutorialTitle">
-<div class="tutorial-header"><h2 id="tutorialTitle"><img src="brand.svg" class="tutorial-brand-icon" alt=""> Guia rápido</h2><button class="tutorial-close" id="closeTutorial" type="button" aria-label="Fechar">✕</button></div>
+<div class="tutorial-header"><h2 id="tutorialTitle"><img src="brand.svg" class="tutorial-brand-icon" alt=""> Guia rápido · Compasso IA</h2><button class="tutorial-close" id="closeTutorial" type="button" aria-label="Fechar">✕</button></div>
 <div class="tutorial-step-dots"><span class="tutorial-dot active"></span><span class="tutorial-dot"></span><span class="tutorial-dot"></span><span class="tutorial-dot"></span></div>
 <div class="tutorial-slide active" data-step="0">
-<h3>1. Bloco de foco</h3>
-<div class="highlight-box">Escolha o <b>Projeto</b>, a <b>Duração</b> (ex.: 50 min) e clique em <b>Iniciar foco</b>.</div>
+<h3>1. Zero modelos fixos (Zero-Clique)</h3>
+<div class="highlight-box">Você <b>não precisa escolher</b> Pomodoro, 50 min nem projeto antes de usar o PC. O Compasso inicia silenciosamente com o Windows e começa a acompanhar em segundo plano sozinho.</div>
 </div>
 <div class="tutorial-slide" data-step="1">
-<h3>2. Recursos já ativos</h3>
-<div class="highlight-box"><b>Câmera</b>, <b>Capturas de contexto</b> e <b>Bloqueio web</b> já iniciam armados. Clique em <b>Configuração do bloco</b> apenas se quiser alterar.</div>
+<h3>2. A IA aprende como você usa o PC</h3>
+<div class="highlight-box">Cruzando janelas ativas, cadência de digitação, horários de pico e trocas de aplicativo, a IA descobre <b>seu ritmo real</b> e onde sua atenção costuma dispersar, dando dicas práticas personalizadas.</div>
 </div>
 <div class="tutorial-slide" data-step="2">
-<h3>3. Mentoria e Pausa 4-4-4</h3>
-<div class="highlight-box">A aba <b>3. Mentoria</b> estima fadiga e dispersão localmente e oferece o guia de <b>Respiração 4-4-4</b> no topo.</div>
+<h3>3. Hobby sem culpa &amp; Visão na borda</h3>
+<div class="highlight-box">Quando você entra em jogos, música ou descanso voluntário, a IA <b>silencia alertas de cobrança</b>. A câmera local (MediaPipe) monitora postura/olhar 100% no seu PC e sugere <b>Pausa 4-4-4</b> quando há fadiga.</div>
 </div>
 <div class="tutorial-slide" data-step="3">
-<h3>4. Modo Relógio</h3>
-<div class="highlight-box">Use o botão <b>Relógio</b> no cabeçalho para transformar a janela em um cronômetro flutuante compacto.</div>
+<h3>4. Visualizações &amp; Relatório completo</h3>
+<div class="highlight-box">Use <b>Colunas</b>, <b>Amplo</b>, <b>Lista</b> ou o modo <b>Relógio</b> flutuante no topo, e acompanhe sua evolução na aba <b>2. Desempenho</b> e <b>3. Autorreflexão</b>.</div>
 </div>
 <div class="tutorial-nav">
 <button id="tutorialPrev" type="button" disabled>Anterior</button>

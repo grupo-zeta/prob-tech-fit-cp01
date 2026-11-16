@@ -12,12 +12,24 @@ window.setCompassoGoal=minutes=>{
 $('goal').onchange=()=>{$('customGoalField').hidden=$('goal').value!=='custom';};
 window.onCompassoProjectChanged=()=>{
  const preset=CompassoPresets.find($('project').value);
- $('presetSummary').textContent=preset?`${preset.minutes?preset.minutes+' min sugeridos':'Contínuo'} · método e referência`:'Perfil personalizado';
- $('presetMethod').textContent=preset?.method||'Defina seu objetivo e ajuste a duração para a atividade.';
- $('presetEvidence').textContent=preset?.evidence||'Um projeto personalizado não tem uma evidência específica associada automaticamente.';
- $('presetSource').hidden=!preset;if(preset){$('presetSource').textContent=preset.source.title;$('presetSource').href=preset.source.url;window.setCompassoGoal(preset.minutes);}
+ const autoOn=$('aiAutopilot')?.checked;
+ $('presetSummary').textContent=preset?`${preset.minutes&&!autoOn?preset.minutes+' min sugeridos':'Contínuo (IA)'} · referência opcional`:'Perfil personalizado';
+ $('presetMethod').textContent=preset?.method||'A IA adapta o ritmo automaticamente pelo seu uso real do PC.';
+ $('presetEvidence').textContent=preset?.evidence||'Observação contínua local adaptada aos seus aplicativos e cadência.';
+ $('presetSource').hidden=!preset;
+ if(preset){
+  $('presetSource').textContent=preset.source.title;
+  $('presetSource').href=preset.source.url;
+  if(!autoOn&&preset.minutes>0)window.setCompassoGoal(preset.minutes);
+  else window.setCompassoGoal(0);
+ }
 };
-$('project').onchange=window.onCompassoProjectChanged;
+$('project').onchange=()=>{
+ const preset=CompassoPresets.find($('project').value);
+ if(preset&&preset.minutes>0)window.setCompassoGoal(preset.minutes);
+ else window.setCompassoGoal(0);
+ window.onCompassoProjectChanged();
+};
 window.onCompassoProjectChanged();
 $('startupDuration').onchange=()=>{$('startupCustomField').hidden=$('startupDuration').value!=='custom';};
 $('startupProject').onchange=()=>{const p=CompassoPresets.find($('startupProject').value);if(p){$('startupDuration').value=p.minutes===0?'continuous':String(p.minutes);$('startupCustomField').hidden=true;}};

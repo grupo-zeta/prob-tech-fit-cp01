@@ -1,8 +1,10 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.CompassoPresets=api;})(globalThis,function(){
+ const aiAuto={title:'Copiloto Contínuo Compasso (IA Local)',url:'https://pubmed.ncbi.nlm.nih.gov/26173288/'};
  const study={title:'Dunlosky et al. (2013)',url:'https://pubmed.ncbi.nlm.nih.gov/26173288/'};
  const breaks={title:'Albulescu et al. (2022)',url:'https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0272460'};
  const items=[
-  {name:'Foco Geral',minutes:50,pause:10,method:'Escolha uma entrega concreta e faça uma pausa entre blocos.',evidence:'A revisão sobre micropausas encontrou benefícios para vigor e fadiga; ganhos de desempenho dependem da tarefa.',source:breaks},
+  {name:'Uso Contínuo (IA · Automático)',minutes:0,pause:0,method:'Você não precisa escolher Pomodoro ou um método pronto: a IA observa seus aplicativos, cadência e postura para adaptar recomendações ao seu uso real do PC.',evidence:'Aprendizado contínuo local sem impor blocos fixos antes de conhecer o seu ritmo.',source:aiAuto},
+  {name:'Foco Geral',minutes:0,pause:10,method:'Acompanha seu uso geral sem bloco fixo; quando notar fadiga ou queda de cadência, a IA sugere a pausa ideal.',evidence:'A revisão sobre micropausas encontrou benefícios para vigor e fadiga; o ritmo ideal varia por pessoa e tarefa.',source:breaks},
   {name:'Programação · prática guiada',minutes:50,pause:10,method:'Implemente um exercício, explique sua solução e retome os pontos difíceis em outra sessão.',evidence:'Prática distribuída e testes de recuperação têm boa sustentação na revisão de técnicas de aprendizagem; não garantem aprender uma linguagem em um único bloco.',source:study},
   {name:'Revisão · recuperação ativa',minutes:25,pause:5,method:'Tente recordar ou responder questões antes de consultar o material.',evidence:'A revisão identifica a prática de testes e a distribuição do estudo como técnicas de alta utilidade.',source:study},
   {name:'Leitura · autoexplicação',minutes:30,pause:5,method:'Leia um trecho e explique, com suas palavras, como as ideias se conectam.',evidence:'A autoexplicação apresenta utilidade moderada na revisão; os resultados variam conforme a tarefa e a orientação.',source:study},
