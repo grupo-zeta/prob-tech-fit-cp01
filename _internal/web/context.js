@@ -3,16 +3,18 @@ let selectedCaptures=new Set(),captureSignature='',reviewSignature='';
 let previousContextSession=null;
 const guardSaved=saved('compasso.guard',{mode:'blocklist',domains:['youtube.com','instagram.com','tiktok.com','facebook.com','web.whatsapp.com','discord.com']});
 $('guardMode').value=guardSaved.mode;$('guardDomains').value=guardSaved.domains.join(', ');
-$('guardEnabled').checked=true;$('captureEnabled').checked=true;$('aiAuto').checked=true;$('approveUpload').checked=true;
-const preferredProvider=saved('compasso.analysisProvider','ollama');
+$('guardEnabled').checked=false;$('captureEnabled').checked=true;$('aiAuto').checked=false;$('approveUpload').checked=false;
+const preferredProvider=saved('compasso.analysisProvider','local');
 $('analysisProvider').value=['local','ollama','openai'].includes(preferredProvider)?preferredProvider:'local';$('reviewProvider').value=$('analysisProvider').value;
 function updateProvider(value,refresh=true){
  $('analysisProvider').value=value;$('reviewProvider').value=value;localStorage.setItem('compasso.analysisProvider',JSON.stringify(value));
- $('approveUpload').checked=true;$('aiAuto').checked=true;
+ const isLocal=(value==='local');
+ $('aiAuto').disabled=isLocal||!$('captureEnabled').checked;
+ if(isLocal){$('aiAuto').checked=false;$('approveUpload').checked=false;}
  $('localModelField').hidden=value!=='ollama';
  $('uploadConsentText').textContent=value==='openai'?'Autorizar envio à OpenAI':'Autorizar análise local';
  $('autoAnalysisLabel').textContent=value==='openai'?'Análise automática (OpenAI)':'Análise automática local';
- $('autoAnalysisHint').textContent='Até 8 por sessão.';
+ $('autoAnalysisHint').textContent=isLocal?'Desativada no modo métricas locais (sem envio de imagens).':'Até 8 por sessão.';
  $('providerHint').textContent=value==='local'?'100% offline.':value==='ollama'?'Modelo local via Ollama (ex.: llama3:8b).':'Requer chave OpenAI.';
  document.querySelector('.billing-link').hidden=value!=='openai';
  if(state&&refresh)window.renderCompassoContext?.();
@@ -23,11 +25,15 @@ updateProvider($('analysisProvider').value);
 window.contextStartOptions=()=>{
  const domains=$('guardDomains').value.split(/[\s,;]+/).filter(Boolean);
  localStorage.setItem('compasso.guard',JSON.stringify({mode:$('guardMode').value,domains}));
- return {objective:$('objective').value,capture_enabled:$('captureEnabled').checked,allow_ai_upload:$('aiAuto').checked,
-  capture_interval:Number($('captureInterval').value),guard_enabled:$('guardEnabled').checked,guard_mode:$('guardMode').value,domains,
-  analysis_provider:$('analysisProvider').value,local_model:$('localModel').value};
+ const provider=$('analysisProvider').value;
+ const captureOn=$('captureEnabled').checked;
+ const guardOk=Boolean($('guardEnabled').checked&&state?.context?.extension_connected);
+ const allowUpload=(provider!=='local')&&captureOn&&$('aiAuto').checked;
+ return {objective:$('objective').value,capture_enabled:captureOn,allow_ai_upload:allowUpload,
+  capture_interval:Number($('captureInterval').value),guard_enabled:guardOk,guard_mode:$('guardMode').value,domains,
+  analysis_provider:provider,local_model:$('localModel').value};
 };
-$('captureEnabled').onchange=()=>{$('aiAuto').disabled=!$('captureEnabled').checked;if(!$('captureEnabled').checked)$('aiAuto').checked=false;};
+$('captureEnabled').onchange=()=>{const isLocal=$('analysisProvider').value==='local';$('aiAuto').disabled=isLocal||!$('captureEnabled').checked;if(!$('captureEnabled').checked||isLocal)$('aiAuto').checked=false;};
 $('captureNow').onclick=safe(async()=>{await api('capture_now');notify('Troque para a janela desejada. A captura autorizada será feita em 5 segundos.');});
 $('stopCaptures').onclick=safe(async()=>{await api('context_stop');await refresh();});
 $('extensionGuide').onclick=()=>$('extensionDialog').showModal();
@@ -43,11 +49,11 @@ window.renderCompassoContext=()=>{
  const active=!!state.active;
  if(active&&$('analysisProvider').value!==c.options.analysis_provider)updateProvider(c.options.analysis_provider,false);
  $('reviewProvider').disabled=active;
- if(previousContextSession&&!active){$('captureEnabled').checked=true;$('aiAuto').checked=true;$('guardEnabled').checked=true;$('approveUpload').checked=true;}
+ if(previousContextSession&&!active){const isLocal=$('analysisProvider').value==='local';$('captureEnabled').checked=true;$('aiAuto').checked=!isLocal;$('guardEnabled').checked=Boolean(c.extension_connected);$('approveUpload').checked=false;}
  previousContextSession=state.active?.id||null;
  document.body.classList.toggle('captures-active',active&&c.options.capture_enabled);
  for(const id of ['objective','guardEnabled','guardMode','guardDomains','captureEnabled','captureInterval','analysisProvider','localModel'])$(id).disabled=active;
- $('aiAuto').disabled=active||!$('captureEnabled').checked;
+ $('aiAuto').disabled=active||!$('captureEnabled').checked||$('analysisProvider').value==='local';
  if(active){$('captureEnabled').checked=c.options.capture_enabled;$('aiAuto').checked=c.options.allow_ai_upload;}
  $('captureNow').disabled=!active||state.paused||!c.options.capture_enabled||c.capture_busy;
  $('stopCaptures').disabled=!active||!c.options.capture_enabled;

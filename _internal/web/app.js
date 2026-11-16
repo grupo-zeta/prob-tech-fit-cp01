@@ -30,8 +30,9 @@ function syncActiveFeaturePills() {
  const smt = $('smartphoneAlertEnabled')?.checked ?? true;
  const sng = $('singleWindowEnabled')?.checked ?? true;
  const cap = $('captureEnabled')?.checked ?? true;
- const grd = $('guardEnabled')?.checked ?? true;
- const ai = $('aiAuto')?.checked ?? true;
+ const grd = Boolean($('guardEnabled')?.checked && state?.context?.extension_connected);
+ const prov = $('analysisProvider')?.value || 'local';
+ const ai = prov !== 'local' && ($('aiAuto')?.checked ?? false);
  const modelName = ($('localModel')?.value || 'llama3:8b').trim() || 'llama3:8b';
  const intervalVal = $('captureInterval')?.value || '60';
  const intervalLabel = intervalVal === '30' ? '30s' : intervalVal === '120' ? '2m' : '1m';
@@ -46,7 +47,7 @@ function syncActiveFeaturePills() {
  setPill('pillSingleWin', sng, 'Janela \u00FAnica', 'Multijanela');
  setPill('pillCapture', cap, 'Capturas (' + intervalLabel + ')', 'Sem capturas');
  setPill('pillGuard', grd, 'Bloqueio web', 'Sem bloqueio');
- setPill('pillAi', ai, modelName, 'IA manual');
+ setPill('pillAi', prov === 'local' || ai, prov === 'local' ? 'Local' : modelName, 'IA manual');
 }
 try {
  applyLayoutMode(localStorage.getItem('compasso.layoutMode') || 'split', false);
@@ -120,20 +121,25 @@ function updateWin7ClockGadget() {
  if ($('gadgetHourHand')) $('gadgetHourHand').setAttribute('transform', `rotate(${hDeg.toFixed(2)} 110 110)`);
  if ($('gadgetMinHand')) $('gadgetMinHand').setAttribute('transform', `rotate(${mDeg.toFixed(2)} 110 110)`);
  if ($('gadgetSecHand')) $('gadgetSecHand').setAttribute('transform', `rotate(${sDeg.toFixed(2)} 110 110)`);
- if ($('gadgetModeLabel')) $('gadgetModeLabel').textContent = gadgetHandsUseSession ? 'CRON\u00D4METRO' : 'HORA LOCAL';
- if ($('gadgetTimer') && typeof clock === 'function') $('gadgetTimer').textContent = clock(elapsed);
+ if ($('gadgetModeLabel')) $('gadgetModeLabel').textContent = gadgetHandsUseSession ? 'DURAÇÃO' : 'HORA LOCAL';
+ if ($('gadgetTimer')) {
+  $('gadgetTimer').textContent = gadgetHandsUseSession && typeof clock === 'function'
+   ? clock(elapsed)
+   : now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+ }
  if ($('gadgetStatus')) {
-  const st = active ? (paused ? 'PAUSADO' : 'EM FOCO') : 'PRONTO';
-  const gl = goal ? `${goal}M` : 'LIVRE';
-  $('gadgetStatus').textContent = `${st} \u00B7 ${gl}`;
+  const isHobby = typeof auto !== 'undefined' && auto.kind === 'hobby';
+  const st = !active ? 'AGUARDANDO' : (paused ? 'PAUSADA' : (isHobby ? 'HOBBY · SILENC.' : 'IA ATIVA'));
+  $('gadgetStatus').textContent = st;
  }
  if ($('gadgetProgressArc')) {
   const circum = 571.77;
-  const ratio = goal > 0 ? Math.min(1, elapsed / (goal * 60)) : (active ? ((elapsed % 3600) / 3600) : 0);
+  const riskVal = typeof auto !== 'undefined' && typeof predictRisk === 'function' && active ? (predictRisk(Date.now()).risk / 100) : 0;
+  const ratio = goal > 0 ? Math.min(1, elapsed / (goal * 60)) : (active ? Math.max(0.12, riskVal) : 0);
   $('gadgetProgressArc').style.strokeDashoffset = (circum * (1 - ratio)).toFixed(2);
  }
  if ($('gadgetToggleRun')) {
-  $('gadgetToggleRun').textContent = !active ? 'Iniciar' : (paused ? 'Retomar' : 'Pausar');
+  $('gadgetToggleRun').textContent = !active ? 'Ativar' : (paused ? 'Retomar' : 'Pausar');
  }
  if ($('gadgetFinish')) {
   $('gadgetFinish').disabled = !active;
@@ -146,8 +152,8 @@ function toggleGadgetHandsMode() {
  gadgetHandsUseSession = !gadgetHandsUseSession;
  updateWin7ClockGadget();
 }
-function toggleWidgetMode() {
- isWidgetMode = !isWidgetMode;
+function setWidgetMode(enable) {
+ isWidgetMode = Boolean(enable);
  document.body.classList.toggle('widget-mode', isWidgetMode);
  const lbl = $('widgetToggleLabel');
  if (lbl) lbl.textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
@@ -156,19 +162,22 @@ function toggleWidgetMode() {
  try {
   if (window.screen && screen.availWidth) {
    if (isWidgetMode) {
-    const gw = 260, gh = 290;
+    const gw = 286, gh = 368;
     window.resizeTo(gw, gh);
-    window.moveTo(Math.max(0, screen.availWidth - gw - 24), 24);
-    if (!pinned) {
+    window.moveTo(Math.max(0, screen.availWidth - gw - 20), 20);
+    if (!pinned && token) {
      pinned = true;
-     api('pin');
-     $('pin').textContent = 'Fixado';
+     api('pin').catch(() => {});
+     if ($('pin')) $('pin').textContent = 'Fixado';
     }
    } else {
     centerCompassoWindow();
    }
   }
  } catch(_) {}
+}
+function toggleWidgetMode() {
+ setWidgetMode(!isWidgetMode);
 }
 if ($('widgetToggle')) $('widgetToggle').onclick = toggleWidgetMode;
 if ($('gadgetExpand')) $('gadgetExpand').onclick = toggleWidgetMode;
@@ -338,13 +347,20 @@ function enterCompassoApp(user, isNewProfile = false) {
   $('goal').value = String(user.preset);
  }
  document.body.classList.remove('auth-active');
- centerCompassoWindow();
+ const qParams = new URLSearchParams(location.search);
+ const openAsWidget = !qParams.has('panel') && (qParams.has('startup') || saved('compasso.widgetOnStartup', true));
+ if (openAsWidget) setWidgetMode(true);
+ else centerCompassoWindow();
  if (isNewProfile) {
   notify(`Perfil "${displayName}" criado e ativado. A partir de agora o Compasso inicia sozinho com o Windows.`);
  }
  if (state) updateCognitiveTwinMentor();
 }
 try {
+ if ($('widgetOnStartup')) {
+  $('widgetOnStartup').checked = saved('compasso.widgetOnStartup', true);
+  $('widgetOnStartup').onchange = () => localStorage.setItem('compasso.widgetOnStartup', JSON.stringify($('widgetOnStartup').checked));
+ }
  if ($('aiAutopilot')) {
   $('aiAutopilot').checked = saved('compasso.aiAutopilot', true);
   $('aiAutopilot').onchange = () => {
@@ -423,7 +439,7 @@ if ($('logoutBtn')) $('logoutBtn').onclick = () => {
 };
 const colors={focus:'#2fb380',study:'#4c7ef3',neutral:'#8b909a',distraction:'#e55353',mixed:'#8b909a'};
 const labels={focus:'Foco',study:'Leitura',neutral:'Neutro',distraction:'Distração',mixed:'Misto'};
-let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, cameraManual=false, videoVisible=true, cameraGeneration=0;
+let state=null, report=null, token='', tab='focus', pinned=false, suggested=25, stream=null, model=null, cameraOn=false, cameraManual=false, cameraStarting=false, cameraFrameErrors=0, videoVisible=true, cameraGeneration=0;
 let calibrated=null, lastCameraSend=0, blinkClosed=false, blinkCount=0, totalBlinks=0, lastLandmarks=null, cameraBusy=false;
 let calibrationRun=null, classificationContext=null, liveClassificationTarget=null, blinkStarted=0;
 let calibrationPrompted=false;
@@ -480,12 +496,16 @@ if($('dismissSmartphoneAlert'))$('dismissSmartphoneAlert').onclick=()=>{if($('sm
 async function refresh(){
  const r=await fetch('/api/state');if(!r.ok)throw Error('Monitor local indisponível');state=await r.json();token=state.token;
  $('timer').textContent=clock(state.elapsed);const active=!!state.active;
- $('status').textContent=active?(state.paused?'Pausado \u00B7 4-4-4':'Fase 2 \u00B7 Observando'):'Fase 1 \u00B7 Aguardando';
+ if($('autoStatusHeadline')){
+  const isHobby=typeof auto!=='undefined'&&auto.kind==='hobby';
+  $('autoStatusHeadline').textContent=!active?'Aguardando início do monitoramento':state.paused?'Monitoramento pausado':isHobby?'Hobby reconhecido · alertas silenciados':'Monitorando em segundo plano';
+ }
+ $('status').textContent=active?(state.paused?'Pausado \u00B7 4-4-4':'Em segundo plano'):'Fase 1 \u00B7 Aguardando';
  $('start').disabled=active;$('start').textContent=active?'Em andamento':'Iniciar monitoramento';$('start').classList.toggle('running-indicator',active);$('pause').disabled=!active;$('finish').disabled=!active;$('cancelSession').disabled=!active;$('pause').textContent=state.paused?'Retomar':'Pausar';
  $('project').disabled=active;$('goal').disabled=active;
  const goal=active?state.active.goal:getGoal();
  const adaptiveThr=typeof learnedThreshold==='function'?learnedThreshold():34;
- $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):`Ritmo IA · ~${adaptiveThr} min`;
+ $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):`Sem cronômetro · ciclo ~${adaptiveThr} min`;
  $('progress').style.width=goal?Math.min(100,state.elapsed/(goal*60)*100)+'%':'0%';document.querySelector('.progress').hidden=!goal;
  $('customGoal').disabled=active;
  if(!active||state.paused||window.compassoSuppressAlerts){
@@ -505,7 +525,7 @@ async function refresh(){
  $('input').title=`${state.report.scroll} eventos de rolagem · ${Math.round(state.report.mouse_distance||0)} px de deslocamento (dia)`;
  $('mouseMetrics').textContent=`Mouse: x ${state.live.mouse_x??'—'}, y ${state.live.mouse_y??'—'} · ${state.report.moves||0} movimentos · ${Math.round(state.report.mouse_distance||0)} px · ${state.report.scroll} rolagens (dia).`;
  $('windowMetrics').textContent=$('window').title;
- if(cameraOn&&!cameraManual&&(!active||state.paused))stopCamera();
+ if(cameraOn&&!cameraManual&&!cameraStarting&&(!active||state.paused))stopCamera();
  if(!$('reportDay').value)$('reportDay').value=state.report.day;
  if($('reportDay').value===state.report.day){report=state.report;if(tab!=='focus')renderReport();}
  window.renderCompassoContext?.();
@@ -670,35 +690,101 @@ function pdf(analysisOnly=false){
 }
 $('pdf').onclick=safe(()=>pdf(false));$('aiPdf').onclick=safe(()=>pdf(true));
 function stopCamera(){
- const wasOn=cameraOn;cameraGeneration++;cameraOn=false;cameraManual=false;
+ const wasOn=cameraOn;cameraGeneration++;cameraOn=false;cameraManual=false;cameraStarting=false;cameraFrameErrors=0;
  if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;
  $('video').srcObject=null;$('video').hidden=true;$('cameraPlaceholder').hidden=false;
  $('cameraToggle').textContent='Ativar câmera';$('cameraStatus').textContent='Câmera desligada';$('points').textContent='';
  const canvas=$('hud');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
  for(const id of ['gaze','head','posture','face']){$(id).textContent='Câmera desligada';$(id).title='';}
- $('signalMetrics').textContent='Ative a câmera durante uma sessão para ver os ângulos.';
+ $('signalMetrics').textContent='Ative a câmera para acompanhar olhar, cabeça e postura localmente.';
  cancelCalibration();calibrated=null;lastLandmarks=null;autoCalibrationSamples=[];lastRaw=null;window.compassoVision=null;
  if(wasOn&&token)api('camera_off',{},true).catch(()=>{});
 }
-async function startCamera(manual=false){
- if(manual)cameraManual=true;
- const generation=++cameraGeneration;$('cameraToggle').disabled=true;$('cameraStatus').textContent='Carregando modelos locais…';
+function friendlyCameraError(e){
+ const name=e?.name||'', msg=String(e?.message||e||'');
+ if(/mediaDevices/i.test(msg))return 'Câmera indisponível neste endereço; abra pelo Compasso local (127.0.0.1).';
+ if(name==='NotReadableError'||name==='TrackStartError')return 'Webcam em uso por outro app ou outra aba no Windows. Feche a outra janela e tente de novo.';
+ if(name==='NotAllowedError'||name==='PermissionDeniedError')return 'Permissão da câmera bloqueada no Windows ou no navegador. Libere o acesso e tente novamente.';
+ if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'Nenhuma webcam encontrada neste computador.';
+ if(/webgl/i.test(msg))return 'WebGL indisponível para o MediaPipe no navegador. Verifique a aceleração gráfica.';
+ return msg||'Erro desconhecido na câmera local.';
+}
+async function waitForVideoReady(video){
+ if(video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0)return;
+ await new Promise((resolve,reject)=>{
+  let done=false;
+  const cleanup=()=>{video.removeEventListener('loadeddata',check);video.removeEventListener('canplay',check);clearInterval(iv);clearTimeout(to);};
+  const check=()=>{if(done)return;if(video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0){done=true;cleanup();resolve();}};
+  const iv=setInterval(check,50);
+  const to=setTimeout(()=>{if(done)return;done=true;cleanup();if(video.videoWidth>0)resolve();else reject(Error('A webcam abriu, mas não enviou imagem a tempo.'));},4000);
+  video.addEventListener('loadeddata',check);video.addEventListener('canplay',check);check();
+ });
+}
+async function acquireCameraStream(){
+ if(!navigator.mediaDevices?.getUserMedia)throw Error('navigator.mediaDevices indisponível.');
  try{
-  const acquired=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:360},facingMode:'user'},audio:false});
+  return await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:360},facingMode:'user'},audio:false});
+ }catch(e){
+  if(e?.name==='NotAllowedError'||e?.name==='PermissionDeniedError'||e?.name==='NotReadableError')throw e;
+  return await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+ }
+}
+async function startCamera(manual=false){
+ if(cameraOn){if(manual)cameraManual=true;return;}
+ if(cameraStarting&&!manual)return;
+ if(manual)cameraManual=true;
+ cameraStarting=true;cameraFrameErrors=0;
+ const generation=++cameraGeneration;$('cameraToggle').disabled=true;$('cameraStatus').textContent='Solicitando câmera…';
+ try{
+  const acquired=await acquireCameraStream();
   if(generation!==cameraGeneration){acquired.getTracks().forEach(t=>t.stop());return;}
-  stream=acquired;$('video').srcObject=stream;await $('video').play();
-  if(!model){model=new Holistic({locateFile:file=>'/mediapipe/'+file});model.setOptions({modelComplexity:0,smoothLandmarks:true,refineFaceLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});model.onResults(onResults);}
+  stream=acquired;const video=$('video');video.srcObject=stream;await video.play();
+  await waitForVideoReady(video);
+  if(generation!==cameraGeneration)return;
+  $('cameraStatus').textContent='Carregando MediaPipe local…';
+  if(!model){
+   if(typeof Holistic!=='function')throw Error('Biblioteca local Holistic não carregada.');
+   model=new Holistic({locateFile:file=>'/mediapipe/'+file});
+   model.setOptions({modelComplexity:0,smoothLandmarks:true,refineFaceLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});
+   model.onResults(onResults);
+  }
+  if(typeof model.initialize==='function')await model.initialize();
+  if(generation!==cameraGeneration)return;
   const settings=stream.getVideoTracks()[0].getSettings?.()||{};
-  calibrationKey=CompassoCalibration.key({deviceId:settings.deviceId||'default-camera'},$('video').videoWidth||640,$('video').videoHeight||360,{width:screen.width,height:screen.height,pixelRatio:devicePixelRatio});
+  const vw=video.videoWidth||640, vh=video.videoHeight||360;
+  calibrationKey=CompassoCalibration.key({deviceId:settings.deviceId||'default-camera'},vw,vh,{width:screen.width,height:screen.height,pixelRatio:devicePixelRatio});
   calibrated=CompassoCalibration.load(calibrationStorage(),calibrationKey);calibrationStored=!!calibrated;
   cameraOn=true;calibrationPrompted=!!calibrated;autoCalibrationSamples=[];lastRaw=null;blinkCount=0;totalBlinks=0;blinkClosed=false;lastCameraSend=0;showCalibrationSaved();
-  $('hud').width=$('video').videoWidth;$('hud').height=$('video').videoHeight;
-  $('cameraPlaceholder').hidden=true;$('video').hidden=!videoVisible;$('cameraToggle').textContent='Desligar câmera';
+  $('hud').width=vw;$('hud').height=vh;
+  $('cameraPlaceholder').hidden=true;video.hidden=!videoVisible;$('cameraToggle').textContent='Desligar câmera';
   stream.getVideoTracks()[0].addEventListener('ended',()=>{stopCamera();notify('A câmera foi desconectada. Você pode continuar sem ela.');});
   frame(generation);
- }catch(e){stopCamera();notify('Não foi possível abrir a câmera: '+e.message);}finally{$('cameraToggle').disabled=false;}
+ }catch(e){
+  if(generation===cameraGeneration){stopCamera();notify('Não foi possível ativar a câmera: '+friendlyCameraError(e));}
+ }finally{
+  if(generation===cameraGeneration)cameraStarting=false;
+  $('cameraToggle').disabled=false;
+ }
 }
-async function frame(generation){if(!cameraOn||generation!==cameraGeneration)return;if(!cameraBusy){cameraBusy=true;try{await model.send({image:$('video')});}catch(e){if(generation===cameraGeneration){stopCamera();notify('Falha no modelo de câmera: '+e.message);}}finally{cameraBusy=false;}}if(cameraOn&&generation===cameraGeneration)setTimeout(()=>frame(generation),100);}
+async function frame(generation){
+ if(!cameraOn||generation!==cameraGeneration)return;
+ const video=$('video');
+ if(!cameraBusy&&video&&video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0){
+  cameraBusy=true;
+  try{
+   await model.send({image:video});
+   cameraFrameErrors=0;
+  }catch(e){
+   cameraFrameErrors++;
+   if(generation===cameraGeneration&&cameraFrameErrors>=3){
+    stopCamera();
+    notify('Falha no modelo local da câmera: '+friendlyCameraError(e));
+    return;
+   }
+  }finally{cameraBusy=false;}
+ }
+ if(cameraOn&&generation===cameraGeneration)setTimeout(()=>frame(generation),110);
+}
 function applyCalibration(result,message){
  calibrated=result;
  calibrationStored=CompassoCalibration.save(calibrationStorage(),calibrationKey,result);
@@ -1216,6 +1302,12 @@ function renderAutopilot(now) {
   $('jarvisFeed').dataset.sig = feedSig;
   $('jarvisFeed').innerHTML = auto.feed.map(f => `<li><time>${f.t.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time><span>${esc(f.text)}</span></li>`).join('');
  }
+ if ($('gadgetAiNow')) {
+  $('gadgetAiNow').textContent = auto.kind === 'hobby' ? `${app} · Hobby (silencioso)` : `${app} · ${KIND_LABEL[auto.kind]} · Risco ${p.risk}%`;
+ }
+ if ($('gadgetAiTip')) {
+  $('gadgetAiTip').textContent = l?.concept || `Ritmo natural ~${p.thr} min · aprendendo seu uso`;
+ }
 }
 function syncReportAppsIntoProfile() {
  const apps = state?.report?.apps;
@@ -1289,7 +1381,7 @@ function autopilotTick() {
  evaluateInterventions(now, idleSec);
  renderAutopilot(now);
 }
-let jarvisBooted = false;
+let jarvisBooted = false, jarvisBootTries = 0;
 async function tryJarvisAutonomousBoot() {
  if (jarvisBooted || !state || document.body.classList.contains('auth-active')) return;
  jarvisBooted = true;
@@ -1297,13 +1389,20 @@ async function tryJarvisAutonomousBoot() {
  try {
   if (!state.startup) api('startup', { enabled: true }).catch(() => {});
   if (!state.active) {
-   await api('start', { project: $('project')?.value || 'Uso Contínuo (IA · Automático)', goal: 0, ...(window.contextStartOptions?.() || {}) });
+   const proj = $('project')?.value || 'Uso Contínuo (IA · Automático)';
+   try {
+    await api('start', { project: proj, goal: 0, ...(window.contextStartOptions?.() || {}) });
+   } catch (_) {
+    await api('start', { project: proj, goal: 0 });
+   }
    const r = await fetch('/api/state');
    if (r.ok) state = await r.json();
    if (state?.active?.goal === 0 && $('goal')) { $('goal').value = 'continuous'; if ($('customGoalField')) $('customGoalField').hidden = true; }
   }
-  if (!cameraOn && $('cameraAuto')?.checked) startCamera(false).catch(() => {});
- } catch (_) {}
+  if (!cameraOn && !cameraStarting && $('cameraAuto')?.checked) startCamera(false).catch(() => {});
+ } catch (_) {
+  if (++jarvisBootTries < 3) setTimeout(() => { jarvisBooted = false; }, 3000);
+ }
 }
 function updateCognitiveTwinMentor() {
  tryJarvisAutonomousBoot();

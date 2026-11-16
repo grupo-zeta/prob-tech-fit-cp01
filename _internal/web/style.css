@@ -1500,3 +1500,65 @@ dialog:not([open]) {
  color: #fb923c;
  flex-shrink: 0;
 }
+
+/* Widget Flutuante · Strip de IA em tempo real */
+.win7-ai-card {
+ width: 100%;
+ max-width: 244px;
+ background: rgba(17, 20, 26, 0.92);
+ border: 1px solid #2b3342;
+ border-left: 3px solid #10b981;
+ border-radius: 8px;
+ padding: 7px 10px;
+ text-align: left;
+}
+
+.win7-ai-head {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+}
+
+.win7-ai-head b {
+ font-size: 11px;
+ color: #34d399;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+}
+
+.win7-ai-card small {
+ display: block;
+ margin-top: 2px;
+ font-size: 10px;
+ color: var(--muted);
+ line-height: 1.35;
+}
+
+/* Card de Estado Contínuo (sem cronômetro gigante na tela) */
+.bg-status-row {
+ align-items: flex-start;
+ gap: 10px;
+ margin-bottom: 6px;
+}
+
+.bg-status-main {
+ display: flex;
+ flex-direction: column;
+ gap: 2px;
+}
+
+.bg-status-main strong {
+ font-size: 15px !important;
+ font-family: inherit !important;
+ letter-spacing: -0.2px !important;
+ color: var(--text);
+}
+
+.manual-timer-peek {
+ margin-top: 6px;
+}
+
+footer {
+ flex-wrap: wrap;
+}
