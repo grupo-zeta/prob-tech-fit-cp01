@@ -1,6 +1,22 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let isWidgetMode = false;
+const hudTabId = Math.random().toString(36).slice(2);
+const hudBc = typeof BroadcastChannel === 'function' ? new BroadcastChannel('compasso-hud') : null;
+if (hudBc) {
+ hudBc.onmessage = ev => {
+  if (ev?.data?.type === 'panel-active' && ev.data.sender !== hudTabId && isWidgetMode) {
+   try { if (typeof stopCamera === 'function' && cameraOn) stopCamera(); } catch(_) {}
+   try { window.close(); } catch(_) {}
+  }
+ };
+}
+try {
+ const bootParams = new URLSearchParams(location.search);
+ const hasAuth = Boolean(localStorage.getItem('compasso.authUser'));
+ const wantWidget = !bootParams.has('panel') && (bootParams.has('startup') || (hasAuth && JSON.parse(localStorage.getItem('compasso.widgetOnStartup') ?? 'true')));
+ document.title = bootParams.has('panel') ? 'Compasso • Painel' : (wantWidget ? 'Compasso • Widget' : 'Compasso • Login');
+} catch(_) {}
 function centerCompassoWindow(){
  try {
   if (isWidgetMode) return;
@@ -155,6 +171,10 @@ function toggleGadgetHandsMode() {
 function setWidgetMode(enable) {
  isWidgetMode = Boolean(enable);
  document.body.classList.toggle('widget-mode', isWidgetMode);
+ document.title = isWidgetMode ? 'Compasso • Widget' : 'Compasso • Painel';
+ if (!isWidgetMode && hudBc) {
+  try { hudBc.postMessage({ type: 'panel-active', sender: hudTabId }); } catch(_) {}
+ }
  const lbl = $('widgetToggleLabel');
  if (lbl) lbl.textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
  else if ($('widgetToggle')) $('widgetToggle').textContent = isWidgetMode ? 'Expandir' : 'Rel\u00F3gio';
@@ -165,11 +185,6 @@ function setWidgetMode(enable) {
     const gw = 296, gh = 338;
     window.resizeTo(gw, gh);
     window.moveTo(Math.max(0, screen.availWidth - gw - 20), 20);
-    if (!pinned && token) {
-     pinned = true;
-     api('pin').catch(() => {});
-     if ($('pin')) $('pin').textContent = 'Fixado';
-    }
    } else {
     centerCompassoWindow();
    }
@@ -350,7 +365,11 @@ function enterCompassoApp(user, isNewProfile = false) {
  const qParams = new URLSearchParams(location.search);
  const openAsWidget = !qParams.has('panel') && (qParams.has('startup') || saved('compasso.widgetOnStartup', true));
  if (openAsWidget) setWidgetMode(true);
- else centerCompassoWindow();
+ else {
+  document.title = 'Compasso • Painel';
+  if (hudBc) { try { hudBc.postMessage({ type: 'panel-active', sender: hudTabId }); } catch(_) {} }
+  centerCompassoWindow();
+ }
  if (isNewProfile) {
   notify(`Perfil "${displayName}" criado e ativado. A partir de agora o Compasso inicia sozinho com o Windows.`);
  }
@@ -435,6 +454,7 @@ if ($('authForm')) $('authForm').onsubmit = e => {
 if ($('logoutBtn')) $('logoutBtn').onclick = () => {
  if (isWidgetMode) toggleWidgetMode();
  renderSavedAccountChips();
+ document.title = 'Compasso • Login';
  document.body.classList.add('auth-active');
 };
 const colors={focus:'#2fb380',study:'#4c7ef3',neutral:'#8b909a',distraction:'#e55353',mixed:'#8b909a'};
