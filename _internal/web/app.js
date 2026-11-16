@@ -162,7 +162,7 @@ function setWidgetMode(enable) {
  try {
   if (window.screen && screen.availWidth) {
    if (isWidgetMode) {
-    const gw = 286, gh = 368;
+    const gw = 296, gh = 338;
     window.resizeTo(gw, gh);
     window.moveTo(Math.max(0, screen.availWidth - gw - 20), 20);
     if (!pinned && token) {
@@ -763,7 +763,11 @@ async function startCamera(manual=false){
   stream.getVideoTracks()[0].addEventListener('ended',()=>{stopCamera();notify('A câmera foi desconectada. Você pode continuar sem ela.');});
   frame(generation);
  }catch(e){
-  if(generation===cameraGeneration){stopCamera();notify('Não foi possível ativar a câmera: '+friendlyCameraError(e));}
+  if(generation===cameraGeneration){
+   stopCamera();
+   if(manual)notify('Não foi possível ativar a câmera: '+friendlyCameraError(e));
+   else $('cameraStatus').textContent='Câmera indisponível no momento';
+  }
  }finally{
   if(generation===cameraGeneration)cameraStarting=false;
   $('cameraToggle').disabled=false;
@@ -1356,12 +1360,31 @@ function renderAutopilot(now) {
   $('jarvisFeed').dataset.sig = feedSig;
   $('jarvisFeed').innerHTML = auto.feed.map(f => `<li><time>${f.t.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time><span>${esc(f.text)}</span></li>`).join('');
  }
- if ($('gadgetAiNow')) {
-  const hobbyLbl = hobbySubtype(state?.live) === 'game' ? 'Jogo (silencioso)' : 'Hobby (silencioso)';
-  $('gadgetAiNow').textContent = auto.kind === 'hobby' ? `${app} · ${hobbyLbl}` : `${app} · ${KIND_LABEL[auto.kind]} · Risco ${p.risk}%`;
- }
- if ($('gadgetAiTip')) {
-  $('gadgetAiTip').textContent = l?.concept || `Ritmo natural ~${p.thr} min · aprendendo seu uso`;
+ if ($('gadgetAiNow') && $('gadgetAiTip')) {
+  const isSelfOrLocked = !app || app === '—' || /^(msedge|chrome|brave|compasso|windows \/ protegido)$/i.test(app) || /compasso/i.test(state?.live?.window_title || '');
+  if (auto.kind === 'hobby') {
+   const isGame = hobbySubtype(state?.live) === 'game';
+   $('gadgetAiNow').textContent = isGame ? `Bom jogo · ${app}` : `Pausa em ${app}`;
+   $('gadgetAiTip').textContent = isGame ? 'Alertas silenciados · ergonomia 20-20-20 ativa' : 'Momento de lazer · tudo tranquilo';
+  } else if (auto.kind === 'idle') {
+   $('gadgetAiNow').textContent = 'Ausente do computador';
+   $('gadgetAiTip').textContent = 'Coleta pausada até você retornar';
+  } else if (auto.kind === 'distraction') {
+   $('gadgetAiNow').textContent = isSelfOrLocked ? 'Navegação leve' : `Em ${app}`;
+   $('gadgetAiTip').textContent = 'Sugestão: retomar 5 min da tarefa quando puder';
+  } else if (auto.kind === 'comm') {
+   $('gadgetAiNow').textContent = `Mensagens · ${app}`;
+   $('gadgetAiTip').textContent = 'Responder em blocos reduz trocas de contexto';
+  } else if (isSelfOrLocked) {
+   $('gadgetAiNow').textContent = 'Observação silenciosa';
+   $('gadgetAiTip').textContent = l?.concept && !/Aprendendo seu uso/.test(l.concept) ? l.concept : 'Acompanhando em segundo plano · passe o mouse';
+  } else if (p.risk >= 68 && p.eta > 0) {
+   $('gadgetAiNow').textContent = `${app} · queda prevista em ~${p.eta} min`;
+   $('gadgetAiTip').textContent = 'Bom fechar o trecho atual antes de pausar';
+  } else {
+   $('gadgetAiNow').textContent = `Em ritmo · ${app}`;
+   $('gadgetAiTip').textContent = `Ciclo observado ~${p.thr} min · tudo estável`;
+  }
  }
 }
 function syncReportAppsIntoProfile() {

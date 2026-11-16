@@ -101,10 +101,9 @@
 <image href="brand.svg" x="98" y="40" width="24" height="24"/>
 <text x="110" y="73" text-anchor="middle" class="w7-brand">compasso<tspan fill="#f97316">.</tspan></text>
 <text x="110" y="83" text-anchor="middle" id="gadgetModeLabel" class="w7-submode">HORA LOCAL</text>
-<!-- Lower Digital Ambient Clock & AI Status Sub-Visor -->
-<rect x="64" y="132" width="92" height="34" rx="7" fill="#090b0f" stroke="#262c37" stroke-width="1"/>
-<text x="110" y="148" text-anchor="middle" id="gadgetTimer" class="w7-digital">--:--</text>
-<text x="110" y="160" text-anchor="middle" id="gadgetStatus" class="w7-status">IA ATIVA</text>
+<!-- Lower Sub-Label (clean, sem caixa) -->
+<text x="110" y="150" text-anchor="middle" id="gadgetTimer" class="w7-digital">--:--</text>
+<text x="110" y="162" text-anchor="middle" id="gadgetStatus" class="w7-status">IA ATIVA</text>
 <!-- Analog Hands -->
 <g id="gadgetHourHand" transform="rotate(0 110 110)">
 <line x1="110" y1="120" x2="110" y2="62" stroke="#000" stroke-width="6" stroke-linecap="round" opacity=".35"/>
@@ -126,15 +125,17 @@
 <path d="M 30 85 A 86 78 0 0 1 190 85 A 92 62 0 0 0 30 85 Z" fill="url(#w7GlassShine)" pointer-events="none"/>
 </svg>
 </div>
-<div class="win7-ai-card" id="gadgetAiCard">
-<div class="win7-ai-head"><span class="jarvis-live-dot"></span><b id="gadgetAiNow">IA aprendendo em segundo plano</b></div>
-<small id="gadgetAiTip">Sem cronômetro na tela · observando seu uso</small>
+<div class="win7-bottom-slot">
+<div class="win7-ai-whisper" id="gadgetAiCard">
+<div class="win7-ai-head"><span class="jarvis-live-dot"></span><b id="gadgetAiNow">Observação silenciosa</b></div>
+<small id="gadgetAiTip">Acompanhando em segundo plano · passe o mouse</small>
 </div>
 <div class="win7-gadget-dock">
-<button type="button" id="gadgetToggleRun" class="win7-dock-btn">Pausar IA</button>
+<button type="button" id="gadgetToggleRun" class="win7-dock-btn">Pausar</button>
 <button type="button" id="gadgetFinish" class="win7-dock-btn" disabled>Salvar</button>
 <button type="button" id="gadgetCancel" class="win7-dock-btn cancel-btn" disabled>Descartar</button>
 <button type="button" id="gadgetRestoreBtn" class="primary win7-dock-btn" title="Abrir painel completo">Painel ↗</button>
+</div>
 </div>
 </div>
 </section>
