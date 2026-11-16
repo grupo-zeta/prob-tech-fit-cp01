@@ -370,7 +370,7 @@ try {
   };
  }
  if ($('jarvisVoiceEnabled')) {
-  $('jarvisVoiceEnabled').checked = saved('compasso.jarvisVoice', true);
+  $('jarvisVoiceEnabled').checked = saved('compasso.jarvisVoice', false);
   $('jarvisVoiceEnabled').onchange = () => localStorage.setItem('compasso.jarvisVoice', JSON.stringify($('jarvisVoiceEnabled').checked));
  }
  const savedUserRaw = localStorage.getItem('compasso.authUser');
@@ -487,10 +487,13 @@ $('pin').onclick=safe(async()=>{pinned=!pinned;await api(pinned?'pin':'unpin');$
 $('web').onclick=()=>window.open(location.origin,'_blank','noopener');
 for(const id of ['minimize','tray'])$(id).onclick=safe(async()=>{stopCamera();await api('minimize');});
 let goalNotified=null, downwardGazeSince=0, lockedTaskApp=null;
+let alertBannerTimer=null;
 function showSmartphoneOrWindowAlert(msg){
  if(!$('smartphoneAlertBanner'))return;
  $('smartphoneAlertText').textContent=msg;
  $('smartphoneAlertBanner').hidden=false;
+ clearTimeout(alertBannerTimer);
+ alertBannerTimer=setTimeout(()=>{if($('smartphoneAlertBanner'))$('smartphoneAlertBanner').hidden=true;},10000);
 }
 if($('dismissSmartphoneAlert'))$('dismissSmartphoneAlert').onclick=()=>{if($('smartphoneAlertBanner'))$('smartphoneAlertBanner').hidden=true;};
 async function refresh(){
@@ -925,12 +928,20 @@ const autoProfile = Object.assign({
 function saveAutoProfile() { try { localStorage.setItem(AUTO_KEY, JSON.stringify(autoProfile)); } catch (_) {} }
 
 const KIND_LABEL = { study: 'Estudo/Trabalho', hobby: 'Hobby/Lazer', comm: 'Comunicação', distraction: 'Distração', neutral: 'Neutro', idle: 'Ausente' };
+const GAME_RE = /steam|epic games|riot|league of legends|valorant|minecraft|roblox|fortnite|cs2|counter-strike|dota|elden ring|hollow knight|overwatch|apex|genshin|eafc|fifa|gta|jogo|game/i;
+const MEDIA_RE = /spotify|netflix|prime video|disney\+|max|twitch|crunchyroll|deezer|youtube/i;
 const KIND_RULES = [
- ['hobby', /steam|epic games|riot|league of legends|valorant|minecraft|roblox|fortnite|spotify|netflix|prime video|disney\+|max|twitch|crunchyroll|deezer|jogo|game/i],
+ ['hobby', /steam|epic games|riot|league of legends|valorant|minecraft|roblox|fortnite|cs2|counter-strike|dota|elden ring|hollow knight|overwatch|apex|genshin|eafc|fifa|gta|spotify|netflix|prime video|disney\+|max|twitch|crunchyroll|deezer|jogo|game/i],
  ['distraction', /tiktok|reels|facebook|twitter|x\.com|shorts|9gag|kwai/i],
  ['comm', /whatsapp|telegram|discord|teams|slack|outlook|gmail|instagram|messenger|zoom/i],
  ['study', /code|visual studio|pycharm|intellij|eclipse|android studio|terminal|powershell|cmd\.exe|notion|obsidian|word|excel|powerpoint|docs|sheets|slides|acrobat|pdf|moodle|sigaa|classroom|overleaf|jupyter|colab|figma|github|stack ?overflow|anki/i]
 ];
+function hobbySubtype(live) {
+ const text = `${live?.app || ''} ${live?.window_title || ''}`;
+ if (GAME_RE.test(text)) return 'game';
+ if (MEDIA_RE.test(text)) return 'media';
+ return 'hobby';
+}
 function classifyActivity(live, category) {
  if (category === 'distraction') return 'distraction';
  if (category === 'focus' || category === 'study') return 'study';
@@ -1079,7 +1090,7 @@ let autoNoticeTimer = null;
 function autoNotice(text) {
  notify(text);
  clearTimeout(autoNoticeTimer);
- autoNoticeTimer = setTimeout(() => { if ($('notice')?.textContent === text) $('notice').hidden = true; }, 14000);
+ autoNoticeTimer = setTimeout(() => { if ($('notice')?.textContent === text) $('notice').hidden = true; }, 10000);
 }
 function cadence(now) {
  const last60 = auto.inputs.filter(([t]) => now - t <= 60000).reduce((a, [, d]) => a + d, 0);
@@ -1139,66 +1150,109 @@ function evaluateInterventions(now, idleSec) {
    narrative: hasTodayData
     ? `${greet}, ${user}. Retomei o aprendizado contínuo. Hoje seu uso principal foi em ${appsSentence()}. ${coaching.lesson}`
     : `${greet}, ${user}. ${firstToday ? 'Iniciei com o Windows e já estou aprendendo sua rotina.' : 'Estou de volta observando seu uso do PC.'} ${peak !== null ? `Pelos seus dados, seu pico de foco costuma ser às ${peak}h.` : 'Use o computador normalmente — conforme eu aprender seu ritmo, vou ajustando suas dicas.'}`,
-   evidence: 'Ação automática: sensores e sessão contínua iniciados sem cliques ou modelos fixos.',
-   feed: 'Saudação automática · aprendizado contínuo de uso iniciado'
+   evidence: 'Ação silenciosa: sensores e aprendizado contínuo iniciados em Widget sem pop-up.',
+   feed: 'Saudação automática · aprendizado contínuo de uso iniciado',
+   notice: false
   });
   return;
  }
- // 2. Transições detectadas pelo próprio uso
+ // 2. Transições detectadas pelo próprio uso (estudos, jogos, hobbies e pausas)
  const tr = auto.transition; auto.transition = null;
  if (tr) {
   if ((tr.kind === 'study') && (tr.prev === 'hobby' || tr.prev === 'idle') && tr.dur >= 120) {
    auto.postBreakUntil = now + 5 * 60000;
   }
-  if (tr.kind === 'hobby' && tr.prev === 'study' && tr.dur >= 300) {
-   if (fire('hobby', {
-    tag: 'PAUSA RECONHECIDA', concept: 'Restauração da Atenção (Kaplan, 1995)',
-    lesson: 'Percebi que você saiu do estudo para algo que gosta. Lazer escolhido recarrega a atenção direcionada — silenciei os alertas enquanto você descansa.',
-    narrative: `${user}, vi que você trocou para lazer depois de ${fmtMinutes(tr.dur)}. Aproveite sem culpa: silenciei os alertas e retomo quando você voltar.`,
-    evidence: 'Ação automática: alertas de smartphone e janela única silenciados durante o hobby.',
-    feed: `Lazer detectado após ${fmtMinutes(tr.dur)} · alertas silenciados`
-   }, 30)) return;
+  if (tr.kind === 'hobby' && (tr.dur >= 120 || tr.prev === 'study')) {
+   const sub = hobbySubtype(state?.live);
+   if (sub === 'game') {
+    if (fire('hobby', {
+     tag: 'JOGO & ERGONOMIA', concept: 'Bom jogo · ergonomia visual em segundo plano',
+     lesson: 'Silenciei alertas de estudo durante sua jogatina. Se passar de ~45 min seguidos, mando apenas um lembrete discreto entre partidas para descansar os olhos (20s).',
+     narrative: `${user}, bom jogo em ${state?.live?.app || 'sua partida'}. Alertas de tarefa silenciados; acompanho só o conforto visual sem interromper.`,
+     evidence: 'Feedback passivo no Widget/painel · zero pop-up na tela do jogo.',
+     feed: `Jogo detectado (${state?.live?.app || 'lazer'}) · modo silencioso ativo`,
+     notice: false
+    }, 30)) return;
+   } else if (tr.prev === 'study' && tr.dur >= 300) {
+    if (fire('hobby', {
+     tag: 'PAUSA RECONHECIDA', concept: 'Restauração da Atenção (Kaplan, 1995)',
+     lesson: 'Pausas voluntárias em hobbies, música ou leitura leve recarregam a atenção direcionada. Silenciei alertas enquanto você aproveita — e meço depois como isso melhora seu retorno.',
+     narrative: `${user}, pausa para hobby/lazer após ${fmtMinutes(tr.dur)} de foco. Aproveite tranquilo: alertas silenciados.`,
+     evidence: 'Ação silenciosa: alertas pausados durante o hobby.',
+     feed: `Hobby/lazer após ${fmtMinutes(tr.dur)} · alertas silenciados`,
+     notice: false
+    }, 30)) return;
+   }
   }
   if (tr.kind === 'study' && ['hobby', 'idle', 'comm'].includes(tr.prev) && tr.dur >= 300) {
+   const longHobby = tr.prev === 'hobby' && tr.dur >= 1200;
    if (fire('return', {
-    tag: 'RETORNO AO FOCO', concept: 'Recuperação Ativa (Roediger e Karpicke, 2006)',
-    lesson: 'Ao retomar um trabalho no PC, tentar lembrar em 1 minuto onde parou antes de sair lendo fortalece a memória e retoma seu contexto rápido.',
-    narrative: `Bem-vindo de volta, ${user}. Seu ciclo natural aprendido até aqui é de ~${learnedThreshold()} min.`,
-    evidence: `Ação automática: retomada medida sem exigir clique ou novo cronômetro.`,
-    feed: `Retorno ao estudo · ciclo natural ~${learnedThreshold()} min`
+    tag: 'RETORNO AO FOCO', concept: longHobby ? 'Aquecimento suave pós-jogo/lazer' : 'Recuperação Ativa (Roediger e Karpicke, 2006)',
+    lesson: longHobby
+     ? 'Na transição de um bloco longo de jogo ou vídeo para estudo/trabalho, começar por 3 min numa etapa mecânica simples reduz a inércia antes da tarefa mais pesada.'
+     : 'Ao retomar o trabalho no PC, tentar lembrar em 1 minuto onde parou antes de sair lendo fortalece a retenção sem esforço extra.',
+    narrative: `De volta ao ritmo, ${user}. Seu ciclo natural observado está em ~${learnedThreshold()} min.`,
+    evidence: 'Retomada detectada automaticamente pelo uso real.',
+    feed: `Retorno mapeado · ciclo natural ~${learnedThreshold()} min`,
+    notice: false
    }, 25)) return;
   }
  }
- // 3. Travamento: mesma janela, quase sem digitação, olhar fora do centro
+ // 2b. Ergonomia preditiva discreta em jogos/mídia longos (>45 min)
+ if (auto.kind === 'hobby' && (now - auto.kindSince) > 45 * 60000) {
+  const sub = hobbySubtype(state?.live);
+  if (fire('hobby_ergo', {
+   tag: sub === 'game' ? 'DICA EM JOGOS' : 'PAUSA VISUAL',
+   concept: sub === 'game' ? 'Regra 20-20-20 entre partidas' : 'Descanso ocular em mídia contínua',
+   lesson: sub === 'game'
+    ? 'Perto de 45 min jogando, a taxa de piscadas cai bastante. Entre uma partida e outra, olhar à distância por 20s e soltar os ombros preserva seus reflexos e evita fadiga nos olhos.'
+    : 'Depois de ~45 min em vídeo ou música na tela, vale levantar 1 minuto ou hidratar antes do próximo bloco.',
+   narrative: `${user}, dica rápida sem cobrança: ~${fmtMinutes((now - auto.kindSince) / 1000)} seguidos em ${state?.live?.app || 'lazer'} — aproveite o próximo intervalo para piscar e olhar longe por 20s.`,
+   evidence: 'Sugestão discreta (sem pop-up) após uso prolongado contínuo.',
+   feed: `Ergonomia em ${sub === 'game' ? 'jogo' : 'hobby'}: descanso ocular de 20s sugerido`,
+   notice: false
+  }, 45)) return;
+ }
+ // 3. Previsão antecipada (silenciosa): avisa no painel/widget alguns minutos ANTES da queda prevista
+ if (auto.kind === 'study' && p.risk >= 68 && p.streakMin >= p.thr * 0.78 && p.eta >= 2 && p.eta <= 8) {
+  if (fire('pre_fatigue', {
+   tag: 'IA PREDITIVA', concept: `Queda prevista nos próximos ~${p.eta} min`,
+   lesson: `Pelos seus ciclos anteriores, sua fluidez costuma desacelerar em ~${p.eta} min. Concluir o raciocínio atual agora evita parar no meio de uma ideia.`,
+   narrative: `${user}, previsão tranquila: seu ritmo entra na zona de cansaço em ~${p.eta} min.`,
+   evidence: 'Projeção preditiva silenciosa (apenas no card e Widget).',
+   feed: `Previsão antecipada: queda de fluidez em ~${p.eta} min`,
+   notice: false
+  }, 30)) return;
+ }
+ // 4. Travamento: mesma janela, quase sem digitação, olhar fora do centro
  if (auto.stuck) {
   if (fire('stuck', {
    tag: 'TRAVAMENTO PROVÁVEL', concept: 'Sobrecarga da Memória de Trabalho (Sweller, 1988)',
    lesson: 'Quando uma tarefa ultrapassa o limite da memória de trabalho, a digitação congela antes de a pessoa fugir para abas distrativas. Dividir em 1 micro-passo destrava.',
-   narrative: `${user}, notei uma pausa longa sem avançar neste trecho. Quebre em uma única dúvida ou etapa menor agora.`,
-   evidence: 'Sinais: mesma janela >2 min, digitação quase parada e olhar desviado.',
-   feed: 'Travamento detectado no uso real · micro-passo sugerido'
+   narrative: `${user}, notei uma pausa longa sem avançar neste trecho — quebrar em uma micro-etapa costuma destravar.`,
+   evidence: 'Sinais discretos: mesma janela >2 min, baixa digitação e olhar desviado.',
+   feed: 'Travamento observado · micro-passo sugerido'
   })) return;
  }
- // 4. Fragmentação: muitas trocas de janela durante estudo
+ // 5. Fragmentação: muitas trocas de janela durante estudo
  if (auto.kind === 'study' && auto.switches.length >= 6) {
   if (fire('fragmented', {
    tag: 'ATENÇÃO FRAGMENTADA', concept: 'Resíduo de Atenção (Leroy, 2009)',
    lesson: 'Trocar rápido entre apps e mensagens deixa parte da atenção presa na tela anterior por vários minutos, reduzindo sua velocidade na tarefa principal.',
-   narrative: `${user}, você alternou de janela ${auto.switches.length} vezes nos últimos 10 minutos. Ativei a proteção de janela única automaticamente.`,
-   evidence: 'Ação automática: janela única ativada após excesso de alternâncias.',
+   narrative: `${user}, notei ${auto.switches.length} trocas de janela nos últimos 10 min; manter só a aba atual ajuda a recuperar a fluidez.`,
+   evidence: 'Ajuste silencioso: monitoramento de janela única priorizado.',
    apply: () => { if ($('singleWindowEnabled')) $('singleWindowEnabled').checked = true; syncActiveFeaturePills(); },
-   feed: `${auto.switches.length} trocas em 10 min · janela única ativada`
+   feed: `${auto.switches.length} alternâncias em 10 min · dica anti-resíduo`
   })) return;
  }
- // 5. Fadiga prevista: passou do limiar pessoal aprendido
+ // 6. Fadiga prevista: passou do limiar pessoal aprendido (SEM modal pop-up forçado)
  if (auto.kind === 'study' && p.streakMin >= p.thr) {
   if (fire('fatigue', {
    tag: 'LIMIAR ATINGIDO', concept: 'Ciclo Ultradiano e Lei de Yerkes-Dodson',
-   lesson: `Pelo que aprendi com seu uso, depois de ${p.thr} min seguidos sua fluidez e postura caem. Uma pausa rápida agora preserva seu desempenho.`,
-   narrative: `${user}, você completou ${Math.round(p.streakMin)} min contínuos (seu limiar aprendido). Abri uma pausa 4-4-4 de 45s.`,
-   evidence: 'Ação automática: micropausa 4-4-4 aberta e fechada sozinha.',
-   apply: () => { openBreatheDialog(); setTimeout(() => { if ($('breatheDialog')?.open) $('breatheDialog').close(); }, 45000); },
-   feed: `${Math.round(p.streakMin)} min contínuos · pausa 4-4-4 automática`
+   lesson: `Pelo que aprendi com seu uso, depois de ${p.thr} min seguidos sua fluidez e postura caem. Se puder fechar este bloco e fazer a respiração ◎ 4-4-4 no Widget por 45s, seu próximo retorno rende mais.`,
+   narrative: `${user}, você passou de ${Math.round(p.streakMin)} min contínuos (seu limiar aprendido). Pausa leve ◎ 4-4-4 sugerida quando fechar o raciocínio.`,
+   evidence: 'Sugestão não-intrusiva (sem abrir pop-up sobre sua janela).',
+   feed: `${Math.round(p.streakMin)} min contínuos · pausa leve sugerida`
   }, 30)) return;
  }
  // 6. Distração prolongada
@@ -1303,7 +1357,8 @@ function renderAutopilot(now) {
   $('jarvisFeed').innerHTML = auto.feed.map(f => `<li><time>${f.t.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time><span>${esc(f.text)}</span></li>`).join('');
  }
  if ($('gadgetAiNow')) {
-  $('gadgetAiNow').textContent = auto.kind === 'hobby' ? `${app} · Hobby (silencioso)` : `${app} · ${KIND_LABEL[auto.kind]} · Risco ${p.risk}%`;
+  const hobbyLbl = hobbySubtype(state?.live) === 'game' ? 'Jogo (silencioso)' : 'Hobby (silencioso)';
+  $('gadgetAiNow').textContent = auto.kind === 'hobby' ? `${app} · ${hobbyLbl}` : `${app} · ${KIND_LABEL[auto.kind]} · Risco ${p.risk}%`;
  }
  if ($('gadgetAiTip')) {
   $('gadgetAiTip').textContent = l?.concept || `Ritmo natural ~${p.thr} min · aprendendo seu uso`;
@@ -1396,7 +1451,10 @@ async function tryJarvisAutonomousBoot() {
     await api('start', { project: proj, goal: 0 });
    }
    const r = await fetch('/api/state');
-   if (r.ok) state = await r.json();
+   if (r.ok) {
+    state = await r.json();
+    await refresh();
+   }
    if (state?.active?.goal === 0 && $('goal')) { $('goal').value = 'continuous'; if ($('customGoalField')) $('customGoalField').hidden = true; }
   }
   if (!cameraOn && !cameraStarting && $('cameraAuto')?.checked) startCamera(false).catch(() => {});
