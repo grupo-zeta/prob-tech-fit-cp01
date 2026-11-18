@@ -61,7 +61,7 @@ function syncActiveFeaturePills() {
  const grd = Boolean($('guardEnabled')?.checked && state?.context?.extension_connected);
  const prov = $('analysisProvider')?.value || 'local';
  const ai = prov !== 'local' && ($('aiAuto')?.checked ?? false);
- const modelName = ($('localModel')?.value || 'llama3:8b').trim() || 'llama3:8b';
+ const modelName = ($('localModel')?.value || 'gemma3:4b').trim() || 'gemma3:4b';
  const intervalVal = $('captureInterval')?.value || '60';
  const intervalLabel = intervalVal === '30' ? '30s' : intervalVal === '120' ? '2m' : '1m';
  const setPill = (id, on, textOn, textOff) => {
@@ -70,12 +70,12 @@ function syncActiveFeaturePills() {
   el.className = on ? 'pill-on' : 'pill-off';
   el.textContent = on ? textOn : textOff;
  };
- setPill('pillCamera', cam, 'C\u00E2mera', 'Sem c\u00E2mera');
- setPill('pillSmartphone', smt, 'Anti-smartphone', 'Sem alerta olhar');
+ setPill('pillCamera', cam, 'C\u00E2mera ativa', 'C\u00E2mera off');
+ setPill('pillSmartphone', smt, 'Anti-celular', 'Anti-celular off');
  setPill('pillSingleWin', sng, 'Janela \u00FAnica', 'Multijanela');
  setPill('pillCapture', cap, 'Capturas (' + intervalLabel + ')', 'Sem capturas');
- setPill('pillGuard', grd, 'Bloqueio web', 'Sem bloqueio');
- setPill('pillAi', prov === 'local' || ai, prov === 'local' ? 'Local' : modelName, 'IA manual');
+ setPill('pillGuard', grd, 'Bloqueio ativo', 'Bloqueio de abas');
+ setPill('pillAi', prov === 'local' || ai, prov === 'local' ? 'Local' : modelName, 'IA local');
 }
 try {
  applyLayoutMode(localStorage.getItem('compasso.layoutMode') || 'split', false);
@@ -1177,7 +1177,7 @@ function learnedRuns() { return autoProfile.focusRuns.filter(m => m >= 5).length
 function getJarvisGreetingPrefix() { const h = new Date().getHours(); return h >= 5 && h < 12 ? 'Bom dia' : h >= 12 && h < 18 ? 'Boa tarde' : 'Boa noite'; }
 function getJarvisUserName() { const n = $('userBadgeName')?.textContent?.trim(); return n && n !== 'Perfil' ? n : 'você'; }
 function topApps(n = 3) {
- return Object.entries(autoProfile.dayApps || {}).filter(([k]) => !/compasso/i.test(k)).sort((a, b) => b[1].s - a[1].s).slice(0, n);
+ return Object.entries(autoProfile.dayApps || {}).filter(([k]) => !/compasso|windows \/ protegido/i.test(k)).sort((a, b) => b[1].s - a[1].s).slice(0, n);
 }
 function appsSentence() {
  const t = topApps();

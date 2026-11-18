@@ -15,7 +15,7 @@ function updateProvider(value,refresh=true){
  $('uploadConsentText').textContent=value==='openai'?'Autorizar envio à OpenAI':'Autorizar análise local';
  $('autoAnalysisLabel').textContent=value==='openai'?'Análise automática (OpenAI)':'Análise automática local';
  $('autoAnalysisHint').textContent=isLocal?'Desativada no modo métricas locais (sem envio de imagens).':'Até 8 por sessão.';
- $('providerHint').textContent=value==='local'?'100% offline.':value==='ollama'?'Modelo local via Ollama (ex.: llama3:8b).':'Requer chave OpenAI.';
+ $('providerHint').textContent=value==='local'?'100% offline.':value==='ollama'?'Modelo visual local no Ollama (ex.: gemma3:4b).':'Requer chave OpenAI.';
  document.querySelector('.billing-link').hidden=value!=='openai';
  if(state&&refresh)window.renderCompassoContext?.();
 }
