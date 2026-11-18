@@ -126,13 +126,50 @@
   }
   return base;
  }
+ function expression(face,eyes,headPose,aspect,baseline=null){
+  const req=[33,263,10,152,61,291,13,14,70,105,107,159,300,334,336,386];
+  if(!req.every(i=>finite(face?.[i])))return null;
+  const p=i=>({x:face[i].x,y:face[i].y*aspect,z:0});
+  const eyeVec=sub(p(263),p(33)),eyeSpan=length(eyeVec);
+  const vertVec=sub(p(152),p(10)),faceHeight=length(vertVec);
+  if(eyeSpan<.035||faceHeight<.06)return null;
+  const uX={x:eyeVec.x/eyeSpan,y:eyeVec.y/eyeSpan,z:0};
+  const uY={x:vertVec.x/faceHeight,y:vertVec.y/faceHeight,z:0};
+  const px=pt=>pt.x*uX.x+pt.y*uX.y, py=pt=>pt.x*uY.x+pt.y*uY.y;
+  const mouthWidth=Math.abs(px(p(291))-px(p(61)))/eyeSpan;
+  const mouthOpen=Math.max(0,py(p(14))-py(p(13)))/faceHeight;
+  const lipMidY=(py(p(13))+py(p(14)))/2;
+  const cornerMidY=(py(p(61))+py(p(291)))/2;
+  const smileLift=(lipMidY-cornerMidY)/faceHeight;
+  const browDist=Math.abs(px(p(336))-px(p(107)))/eyeSpan;
+  const browEyeGap=(((py(p(159))-py(p(105)))+(py(p(386))-py(p(334))))/2)/faceHeight;
+  const innerBrowLift=((((py(p(159))-py(p(107)))-(py(p(159))-py(p(70))))+((py(p(386))-py(p(336)))-(py(p(386))-py(p(300)))))/2)/faceHeight;
+  const eyeOpen=Number.isFinite(eyes?.openness)?eyes.openness:.25;
+  const base=baseline||{mouthWidth:.56,smileLift:0,browDist:.28,browEyeGap:.095,eyeOpen:.25};
+  const dSmile=smileLift-(base.smileLift??0);
+  const dWidth=mouthWidth-(base.mouthWidth??.56);
+  const dBrowDist=(base.browDist??.28)-browDist;
+  const dBrowGap=(base.browEyeGap??.095)-browEyeGap;
+  const happy=clamp((dSmile-.007)*34+Math.max(0,dWidth-.022)*4.5,0,1);
+  const sad=clamp((-dSmile-.006)*32+Math.max(0,innerBrowLift-.007)*18+(headPose&&headPose.pitch>11?.14:0)-happy*.65,0,1);
+  const tense=clamp(Math.max(0,dBrowDist-.013)*15+Math.max(0,dBrowGap-.008)*28+(mouthOpen<.012&&dSmile<=.002?.12:0)-happy*.7,0,1);
+  const tired=clamp((eyeOpen<.175?(.175-eyeOpen)*7.5:0)+(mouthOpen>.105?(mouthOpen-.105)*9:0),0,1);
+  const calm=clamp(1-Math.max(happy,sad,tense,tired)*1.15,.05,1);
+  const scores={calm,happy,sad,tense,tired};
+  let state='calm',best=calm;
+  for(const k of ['happy','sad','tense','tired']){if(scores[k]>=.42&&scores[k]>best){best=scores[k];state=k;}}
+  const labels={calm:'Calmo / Focado',happy:'Feliz / Animado',sad:'Abatido / Triste',tense:'Tenso / Frustrado',tired:'Cansado / Sonolento'};
+  return {state,label:labels[state],confidence:clamp(best,0,1),scores,
+   features:{mouthWidth,mouthOpen,smileLift,browDist,browEyeGap,innerBrowLift,eyeOpen}};
+ }
  function normalizeAxis(v,center,negative,positive){const d=v-center;return clamp(d*(positive-center)>=0?d/(positive-center):-d/(negative-center),-2,2);}
- function analyze(results,calibration=null,aspect=9/16){
+ function analyze(results,calibration=null,aspect=9/16,exprBaseline=null){
   const face=results.faceLandmarks,headPose=head(face,aspect),eyes=iris(face,aspect);
   const body=pose(results.poseLandmarks,results.poseWorldLandmarks,aspect);
   const out={face:!!face?.length,centered:null,gaze_direction:null,gaze_x:null,gaze_y:null,
    head_yaw:null,head_pitch:null,head_roll:null,...body};
-  const raw={head:headPose,iris:eyes};
+  const expr=expression(face,eyes,headPose,aspect,exprBaseline);
+  const raw={head:headPose,iris:eyes,expression:expr};
   if(headPose){
    const base=calibration?.head||{yaw:0,pitch:0,roll:0};
    out.head_yaw=delta(headPose.yaw,base.yaw);out.head_pitch=delta(headPose.pitch,base.pitch);out.head_roll=delta(headPose.roll,base.roll);
@@ -158,5 +195,5 @@
    vectors.push({kind:'gaze',color:'#ffdc4c',start,end:{x:start.x+x,y:start.y+y}});}
   return vectors;
  }
- return {analyze,calibrate,calibrateAdaptive,defaultCalibration,hudVectors,POSE_CONNECTIONS};
+ return {analyze,expression,calibrate,calibrateAdaptive,defaultCalibration,hudVectors,POSE_CONNECTIONS};
 });

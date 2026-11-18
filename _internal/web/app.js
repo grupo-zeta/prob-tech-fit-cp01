@@ -1,6 +1,17 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let isWidgetMode = false;
+let widgetSignalSeq = 0, widgetSignalTimer = null;
+let pendingBlockDomainParam = null;
+function emitWidgetDesktopSignal(signal) {
+ if (!isWidgetMode || !signal) return;
+ widgetSignalSeq += 1;
+ document.title = `Compasso • Widget | ${signal}#${widgetSignalSeq}`;
+ clearTimeout(widgetSignalTimer);
+ widgetSignalTimer = setTimeout(() => {
+  if (isWidgetMode) document.title = 'Compasso • Widget';
+ }, 9500);
+}
 const hudTabId = Math.random().toString(36).slice(2);
 const hudBc = typeof BroadcastChannel === 'function' ? new BroadcastChannel('compasso-hud') : null;
 if (hudBc) {
@@ -13,6 +24,7 @@ if (hudBc) {
 }
 try {
  const bootParams = new URLSearchParams(location.search);
+ if (bootParams.get('block')) pendingBlockDomainParam = bootParams.get('block').trim().toLowerCase();
  const hasAuth = Boolean(localStorage.getItem('compasso.authUser'));
  const wantWidget = !bootParams.has('panel') && (bootParams.has('startup') || (hasAuth && JSON.parse(localStorage.getItem('compasso.widgetOnStartup') ?? 'true')));
  document.title = bootParams.has('panel') ? 'Compasso • Painel' : (wantWidget ? 'Compasso • Widget' : 'Compasso • Login');
@@ -392,6 +404,14 @@ try {
   $('jarvisVoiceEnabled').checked = saved('compasso.jarvisVoice', false);
   $('jarvisVoiceEnabled').onchange = () => localStorage.setItem('compasso.jarvisVoice', JSON.stringify($('jarvisVoiceEnabled').checked));
  }
+ if ($('smartphoneAlertEnabled')) {
+  $('smartphoneAlertEnabled').checked = saved('compasso.smartphoneAlert', true);
+  $('smartphoneAlertEnabled').onchange = () => {
+   localStorage.setItem('compasso.smartphoneAlert', JSON.stringify($('smartphoneAlertEnabled').checked));
+   syncActiveFeaturePills();
+   if (typeof updatePhoneGuardUi === 'function') updatePhoneGuardUi();
+  };
+ }
  const savedUserRaw = localStorage.getItem('compasso.authUser');
  if (savedUserRaw) {
   const savedUser = JSON.parse(savedUserRaw);
@@ -531,8 +551,15 @@ async function refresh(){
  $('goalLabel').textContent=goal?(active?`${state.active.project} · ${goal} min`:`${goal} min`):`Sem cronômetro · ciclo ~${adaptiveThr} min`;
  $('progress').style.width=goal?Math.min(100,state.elapsed/(goal*60)*100)+'%':'0%';document.querySelector('.progress').hidden=!goal;
  $('customGoal').disabled=active;
+ function updatePhoneGuardUi(){
+  if(!$('phoneGuardState'))return;
+  if(!$('smartphoneAlertEnabled')?.checked){$('phoneGuardState').textContent='Desativado';return;}
+  if(window.compassoSuppressAlerts){$('phoneGuardState').textContent='Silencioso (lazer)';return;}
+  $('phoneGuardState').textContent=cameraOn?'Monitorando (>5s)':'Ativo · aguardando câmera';
+ }
  if(!active||state.paused||window.compassoSuppressAlerts){
-  lockedTaskApp=null;downwardGazeSince=0;
+  lockedTaskApp=null;
+  if(state.paused||window.compassoSuppressAlerts)downwardGazeSince=0;
   if(window.compassoSuppressAlerts&&$('smartphoneAlertBanner')&&!$('smartphoneAlertBanner').hidden)$('smartphoneAlertBanner').hidden=true;
  }
  else if($('singleWindowEnabled')?.checked&&state.live?.app&&!/compasso/i.test(state.live.app)){
@@ -541,6 +568,7 @@ async function refresh(){
    showSmartphoneOrWindowAlert(`Modo Janela \u00DAnica: altern\u00E2ncia detectada de "${lockedTaskApp}" para "${state.live.app}".`);
   }
  }
+ updatePhoneGuardUi();
  if(active && goal>0 && state.elapsed>=goal*60 && goalNotified!==state.active.id){goalNotified=state.active.id;await api('finish');if(!cameraManual)stopCamera();await refresh();notify(`Bloco de ${goal} min concluído! Sessão encerrada e salva automaticamente.`);return;}
  $('window').textContent=state.live.window_title||state.live.app;$('window').title=`${state.live.app} · ${state.live.window_title||'Sem título'} · ID ${state.live.window_id||'indisponível'}`;
  if(document.activeElement!==$('category'))$('category').value=state.category;$('startup').checked=state.startup;
@@ -818,10 +846,42 @@ function applyCalibration(result,message){
  cancelCalibration();showCalibrationSaved();
  if(message)notify(message);
 }
+const MOOD_LABELS = { calm: 'Calmo / Focado', happy: 'Feliz / Animado', sad: 'Abatido / Triste', tense: 'Tenso / Frustrado', tired: 'Cansado / Sonolento' };
+let moodBaseline = null, moodBaselineSamples = [], moodEma = { calm: 1, happy: 0, sad: 0, tense: 0, tired: 0 };
+let moodState = { state: 'calm', label: MOOD_LABELS.calm, confidence: 0.7, scores: { ...moodEma }, since: Date.now() };
+let lastPhoneAlertAt = 0;
+function updateMoodTracker(expr) {
+ if (!expr || !expr.scores) return moodState;
+ const f = expr.features;
+ if (!moodBaseline && f && f.mouthOpen < 0.05 && Math.abs(f.smileLift) < 0.04) {
+  moodBaselineSamples.push(f);
+  if (moodBaselineSamples.length >= 16) {
+   moodBaseline = {
+    mouthWidth: medianValue(moodBaselineSamples.map(x => x.mouthWidth)),
+    smileLift: medianValue(moodBaselineSamples.map(x => x.smileLift)),
+    browDist: medianValue(moodBaselineSamples.map(x => x.browDist)),
+    browEyeGap: medianValue(moodBaselineSamples.map(x => x.browEyeGap)),
+    eyeOpen: medianValue(moodBaselineSamples.map(x => x.eyeOpen))
+   };
+  }
+ }
+ const alpha = 0.16;
+ for (const k of ['calm', 'happy', 'sad', 'tense', 'tired']) {
+  moodEma[k] = moodEma[k] * (1 - alpha) + (expr.scores[k] || 0) * alpha;
+ }
+ let dom = 'calm', best = moodEma.calm;
+ for (const k of ['happy', 'sad', 'tense', 'tired']) {
+  if (moodEma[k] >= 0.38 && moodEma[k] > best) { best = moodEma[k]; dom = k; }
+ }
+ const now = Date.now();
+ if (dom !== moodState.state) moodState = { state: dom, label: MOOD_LABELS[dom], confidence: best, scores: { ...moodEma }, since: now };
+ else { moodState.confidence = best; moodState.scores = { ...moodEma }; }
+ return moodState;
+}
 function onResults(results){
  if(!cameraOn)return;lastLandmarks=results;
  const canvas=$('hud'),w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d');
- let {metrics:data,raw}=CompassoVision.analyze(results,calibrationRun?null:calibrated,h/w);
+ let {metrics:data,raw}=CompassoVision.analyze(results,calibrationRun?null:calibrated,h/w,moodBaseline);
  if(raw.head&&raw.iris)lastRaw=raw;
  if(raw.head&&raw.iris?.open&&!calibrationRun&&!calibrationPrompted){
   autoCalibrationSamples.push(raw);
@@ -834,12 +894,13 @@ function onResults(results){
    calibrationStored=CompassoCalibration.save(calibrationStorage(),calibrationKey,calibrated);
    showCalibrationSaved();
   }
-  ({metrics:data,raw}=CompassoVision.analyze(results,calibrated,h/w));
+  ({metrics:data,raw}=CompassoVision.analyze(results,calibrated,h/w,moodBaseline));
  }
  captureCalibrationSample(raw);
  if(raw.iris){if(!raw.iris.open&&!blinkClosed){blinkClosed=true;blinkStarted=performance.now();}
   else if(raw.iris.open&&blinkClosed){const elapsed=performance.now()-blinkStarted;if(elapsed>=50&&elapsed<=800){blinkCount++;totalBlinks++;}blinkClosed=false;}}
  else blinkClosed=false;
+ const curMood = raw.expression ? updateMoodTracker(raw.expression) : moodState;
  ctx.clearRect(0,0,w,h);
  function segment(a,b,color,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(a.x*w,a.y*h);ctx.lineTo(b.x*w,b.y*h);ctx.stroke();}
  function point(p,color,radius=1){ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x*w,p.y*h,radius,0,Math.PI*2);ctx.fill();}
@@ -859,18 +920,28 @@ function onResults(results){
  $('posture').textContent=data.trunk_lean===null?`${data.pose_points} pontos, quadris fora de quadro`:`Tronco ${degrees(data.trunk_lean)}, ${data.posture?'alinhado':'desvio estimado'}`;
  $('posture').title=`Ombros ${degrees(data.shoulder_tilt)}, tronco ${degrees(data.trunk_lean)}, quadris ${degrees(data.hip_tilt)}`;
  $('face').textContent=data.face?`${results.faceLandmarks.length} pontos, ${totalBlinks} piscadas`:'Rosto não detectado';
- window.compassoVision={ts:performance.now(),gaze:data.gaze_direction,posture:data.posture,centered:data.centered,face:data.face};
- if(state?.active&&!state?.paused&&$('smartphoneAlertEnabled')?.checked&&!window.compassoSuppressAlerts){
-  const lookingDown=(data.gaze_direction==='down')||(data.head_pitch!==null&&data.head_pitch>15);
+ if($('emotion')){
+  $('emotion').textContent=data.face&&raw.expression?curMood.label:'Rosto não detectado';
+  $('emotion').title='Expressão facial estimada localmente via 468 pontos geométricos (FACS) — sem diagnóstico clínico.';
+ }
+ if($('phoneGuardState')&&$('smartphoneAlertEnabled')?.checked&&!window.compassoSuppressAlerts){
+  $('phoneGuardState').textContent=data.face?'Monitorando (>5s)':'Aguardando rosto';
+ }
+ window.compassoVision={ts:performance.now(),gaze:data.gaze_direction,posture:data.posture,centered:data.centered,face:data.face,mood:curMood,headPitch:data.head_pitch};
+ if(!state?.paused&&$('smartphoneAlertEnabled')?.checked&&!window.compassoSuppressAlerts){
+  const lookingDown=(data.gaze_direction==='down')||(data.gaze_y!==null&&data.gaze_y>0.65)||(data.head_pitch!==null&&data.head_pitch>12);
   if(lookingDown){
    if(!downwardGazeSince)downwardGazeSince=performance.now();
-   else if(performance.now()-downwardGazeSince>=5000){
-    showSmartphoneOrWindowAlert('Alerta de Smartphone: desvio ocular/cervical inferior (>5s) fora do monitor.');
+   else if(performance.now()-downwardGazeSince>=5000&&Date.now()-lastPhoneAlertAt>=18000){
+    lastPhoneAlertAt=Date.now();
     downwardGazeSince=performance.now();
+    if(typeof recordSmartphoneGlance==='function')recordSmartphoneGlance();
+    showSmartphoneOrWindowAlert('Anti-smartphone: olhar abaixo da tela (>5s). Retome o foco na tela.');
+    emitWidgetDesktopSignal('PHONE');
    }
   }else{downwardGazeSince=0;}
  }
- $('signalMetrics').innerHTML=[['Olhar',data.gaze_direction?gazeLabels[data.gaze_direction]:'sem leitura calibrada'],['Cabeça H / V / inclinação',`${degrees(data.head_yaw)} / ${degrees(data.head_pitch)} / ${degrees(data.head_roll)}`],['Ombros / tronco',`${degrees(data.shoulder_tilt)} / ${degrees(data.trunk_lean)}`],['Quadris / pontos visíveis',`${degrees(data.hip_tilt)} / ${data.pose_points}`],['Cotovelos E / D',`${degrees(data.elbow_left)} / ${degrees(data.elbow_right)}`],['Joelhos E / D',`${degrees(data.knee_left)} / ${degrees(data.knee_right)}`]].map(([k,v])=>`<span data-reading><b>${k}</b><br>${esc(v)}</span>`).join('');
+ $('signalMetrics').innerHTML=[['Olhar',data.gaze_direction?gazeLabels[data.gaze_direction]:'sem leitura calibrada'],['Cabeça H / V / inclinação',`${degrees(data.head_yaw)} / ${degrees(data.head_pitch)} / ${degrees(data.head_roll)}`],['Expressão (FACS local)',data.face&&raw.expression?`${curMood.label} (${Math.round(curMood.confidence*100)}%)`:'sem leitura'],['Ombros / tronco',`${degrees(data.shoulder_tilt)} / ${degrees(data.trunk_lean)}`],['Quadris / pontos visíveis',`${degrees(data.hip_tilt)} / ${data.pose_points}`],['Cotovelos E / D',`${degrees(data.elbow_left)} / ${degrees(data.elbow_right)}`],['Joelhos E / D',`${degrees(data.knee_left)} / ${degrees(data.knee_right)}`]].map(([k,v])=>`<span data-reading><b>${k}</b><br>${esc(v)}</span>`).join('');
  if(state?.active&&!state?.paused&&token&&performance.now()-lastCameraSend>1000){lastCameraSend=performance.now();api('camera',{...data,blinks:blinkCount}).catch(e=>notify('Falha ao registrar câmera: '+e.message));blinkCount=0;}
 }
 $('cameraToggle').onclick=()=>cameraOn?stopCamera():startCamera(true);
@@ -947,9 +1018,126 @@ const AUTO_KEY = 'compasso.autopilot.v1';
 function loadAutoProfile() { try { return JSON.parse(localStorage.getItem(AUTO_KEY)) || {}; } catch (_) { return {}; } }
 const autoProfile = Object.assign({
  focusRuns: [], hourly: {}, appStats: {}, triggers: {}, recovery: { afterBreakSamples: 0, afterBreakCadence: 0, steadySamples: 0, steadyCadence: 0 },
+ moodStats: { calm: 0, happy: 0, sad: 0, tense: 0, tired: 0 },
+ appMood: {}, hourMood: {}, transitions: {}, siteDistractions: {},
+ blockedDomains: [], ignoredBlockDomains: [],
+ microHabits: { smartphoneAlerts: 0, smartphoneHours: {}, postureAlerts: 0, peakCadence: 0, longestStreak: 0 },
  day: '', dayKinds: {}, dayApps: {}, wrapDay: '', greetDay: '', lastTipKey: ''
 }, loadAutoProfile());
+if (!autoProfile.moodStats) autoProfile.moodStats = { calm: 0, happy: 0, sad: 0, tense: 0, tired: 0 };
+if (!autoProfile.appMood) autoProfile.appMood = {};
+if (!autoProfile.hourMood) autoProfile.hourMood = {};
+if (!autoProfile.transitions) autoProfile.transitions = {};
+if (!autoProfile.siteDistractions) autoProfile.siteDistractions = {};
+if (!Array.isArray(autoProfile.blockedDomains)) autoProfile.blockedDomains = [];
+if (!Array.isArray(autoProfile.ignoredBlockDomains)) autoProfile.ignoredBlockDomains = [];
+if (!autoProfile.microHabits) autoProfile.microHabits = { smartphoneAlerts: 0, smartphoneHours: {}, postureAlerts: 0, peakCadence: 0, longestStreak: 0 };
+if (!autoProfile.microHabits.smartphoneHours) autoProfile.microHabits.smartphoneHours = {};
 function saveAutoProfile() { try { localStorage.setItem(AUTO_KEY, JSON.stringify(autoProfile)); } catch (_) {} }
+function recordSmartphoneGlance() {
+ const h = String(new Date().getHours());
+ autoProfile.microHabits.smartphoneAlerts = (autoProfile.microHabits.smartphoneAlerts || 0) + 1;
+ autoProfile.microHabits.smartphoneHours[h] = (autoProfile.microHabits.smartphoneHours[h] || 0) + 1;
+ auto.feed.unshift({ t: new Date(), text: 'Anti-celular: olhar abaixo da tela (>5s) detectado' });
+ auto.feed = auto.feed.slice(0, 6);
+ saveAutoProfile();
+}
+const DISTRACTING_DOMAIN_RULES = [
+ ['youtube.com', /youtube/i, /aula|curso|tutorial|lecture|class|explica|resumo|revis|document[aá]rio|palestra/i],
+ ['instagram.com', /instagram/i, null],
+ ['tiktok.com', /tiktok/i, null],
+ ['facebook.com', /facebook/i, null],
+ ['x.com', /twitter|\bx\.com\b|\s\/\s*x\b/i, null],
+ ['reddit.com', /reddit/i, /programming|learn|study|askscience|explainlikeimfive/i],
+ ['twitch.tv', /twitch/i, null],
+ ['netflix.com', /netflix/i, null],
+ ['web.whatsapp.com', /whatsapp/i, null],
+ ['discord.com', /discord/i, null],
+ ['9gag.com', /9gag/i, null],
+ ['kwai.com', /kwai/i, null]
+];
+function extractDistractingDomain(live) {
+ const app = String(live?.app || ''), title = String(live?.window_title || '');
+ const text = `${app} ${title}`;
+ if (!text.trim() || /compasso/i.test(text)) return null;
+ for (const [domain, re, allowRe] of DISTRACTING_DOMAIN_RULES) {
+  if (re.test(text) && !(allowRe && allowRe.test(text))) return domain;
+ }
+ return null;
+}
+let pendingBlockOffer = null;
+const blockSnoozedUntil = {};
+function hideTabBlockPrompt() {
+ pendingBlockOffer = null;
+ if ($('tabBlockPrompt')) $('tabBlockPrompt').hidden = true;
+}
+function offerTabBlock(domain, visits, mins) {
+ if (!domain || autoProfile.ignoredBlockDomains.includes(domain)) return false;
+ const now = Date.now();
+ if (blockSnoozedUntil[domain] && now < blockSnoozedUntil[domain]) return false;
+ const curDomains = ($('guardDomains')?.value || '').split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+ if (state?.context?.options?.guard_enabled && curDomains.includes(domain)) return false;
+ pendingBlockOffer = { domain, visits, mins, at: now };
+ if ($('tabBlockPrompt')) {
+  $('tabBlockDomainPill').textContent = domain;
+  const reason = visits >= 2 ? `interrompeu seu ritmo ${visits}x agora` : `consumiu ~${Math.max(1, Math.round(mins))} min durante seu foco`;
+  $('tabBlockPromptText').textContent = `Percebi que ${domain} ${reason}. Deseja bloquear esta aba enquanto estiver concentrado?`;
+  if ($('tabBlockExtBtn')) $('tabBlockExtBtn').hidden = Boolean(state?.context?.extension_connected);
+  $('tabBlockPrompt').hidden = false;
+ }
+ auto.feed.unshift({ t: new Date(), text: `Pergunta enviada: bloquear ${domain}?` });
+ auto.feed = auto.feed.slice(0, 6);
+ if (isWidgetMode) emitWidgetDesktopSignal(`BLOCK:${domain}`);
+ return true;
+}
+async function applyTabBlock(domain) {
+ const clean = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+ if (!clean) return;
+ const list = ($('guardDomains')?.value || '').split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+ if (!list.includes(clean)) list.push(clean);
+ if ($('guardDomains')) $('guardDomains').value = list.join(', ');
+ if ($('guardMode')) $('guardMode').value = 'blocklist';
+ try { localStorage.setItem('compasso.guard', JSON.stringify({ mode: 'blocklist', domains: list })); } catch(_) {}
+ if (!autoProfile.blockedDomains.includes(clean)) autoProfile.blockedDomains.push(clean);
+ autoProfile.ignoredBlockDomains = autoProfile.ignoredBlockDomains.filter(d => d !== clean);
+ saveAutoProfile();
+ const extOk = Boolean(state?.context?.extension_connected);
+ if (extOk) {
+  if ($('guardEnabled')) $('guardEnabled').checked = true;
+  syncActiveFeaturePills();
+  try {
+   if (state?.active) await api('finish');
+   const proj = state?.active?.project || $('project')?.value || 'Uso Contínuo (IA · Automático)';
+   const goal = state?.active?.goal ?? 0;
+   await api('start', { project: proj, goal, ...(window.contextStartOptions?.() || {}), guard_enabled: true, guard_mode: 'blocklist', domains: list });
+   await refresh();
+   hideTabBlockPrompt();
+   autoNotice(`Bloqueio ativado para ${clean}. A extensão aplicará a regra na aba em até 5s.`);
+   auto.feed.unshift({ t: new Date(), text: `Bloqueio de aba ativado para ${clean}` });
+   auto.feed = auto.feed.slice(0, 6);
+  } catch (e) {
+   autoNotice(`Domínio ${clean} salvo na lista. ${e.message || ''}`);
+  }
+ } else {
+  if ($('tabBlockExtBtn')) $('tabBlockExtBtn').hidden = false;
+  autoNotice(`${clean} adicionado à lista de bloqueio! Conecte a extensão do navegador (botão "Conectar extensão") para bloquear a aba automaticamente.`);
+  auto.feed.unshift({ t: new Date(), text: `${clean} adicionado à lista (aguardando extensão)` });
+  auto.feed = auto.feed.slice(0, 6);
+ }
+}
+if ($('tabBlockConfirm')) $('tabBlockConfirm').onclick = () => { if (pendingBlockOffer?.domain) applyTabBlock(pendingBlockOffer.domain); };
+if ($('tabBlockSnooze')) $('tabBlockSnooze').onclick = () => {
+ if (pendingBlockOffer?.domain) blockSnoozedUntil[pendingBlockOffer.domain] = Date.now() + 25 * 60000;
+ hideTabBlockPrompt();
+};
+if ($('tabBlockIgnore')) $('tabBlockIgnore').onclick = () => {
+ if (pendingBlockOffer?.domain && !autoProfile.ignoredBlockDomains.includes(pendingBlockOffer.domain)) {
+  autoProfile.ignoredBlockDomains.push(pendingBlockOffer.domain);
+  saveAutoProfile();
+ }
+ hideTabBlockPrompt();
+};
+if ($('tabBlockExtBtn')) $('tabBlockExtBtn').onclick = () => $('extensionDialog')?.showModal();
 
 const KIND_LABEL = { study: 'Estudo/Trabalho', hobby: 'Hobby/Lazer', comm: 'Comunicação', distraction: 'Distração', neutral: 'Neutro', idle: 'Ausente' };
 const GAME_RE = /steam|epic games|riot|league of legends|valorant|minecraft|roblox|fortnite|cs2|counter-strike|dota|elden ring|hollow knight|overwatch|apex|genshin|eafc|fifa|gta|jogo|game/i;
@@ -1040,10 +1228,74 @@ function topTriggerSummary() {
  };
  return map[top[0]] || '';
 }
+function dominantMoodFrom(obj) {
+ if (!obj) return null;
+ const entries = Object.entries(obj).filter(([k, v]) => k !== 'calm' && v >= 20).sort((a, b) => b[1] - a[1]);
+ if (entries.length) return { state: entries[0][0], label: MOOD_LABELS[entries[0][0]] || entries[0][0], sec: entries[0][1] };
+ if ((obj.calm || 0) >= 20) return { state: 'calm', label: MOOD_LABELS.calm, sec: obj.calm };
+ return null;
+}
+function topEscapeChain() {
+ const entries = Object.entries(autoProfile.transitions || {}).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]);
+ return entries.length ? { pair: entries[0][0], count: entries[0][1] } : null;
+}
+function stressfulOrHappyApp() {
+ let tenseApp = null, tenseSec = 0, happyApp = null, happySec = 0;
+ for (const [app, m] of Object.entries(autoProfile.appMood || {})) {
+  if ((m.tense || 0) + (m.sad || 0) > tenseSec && (m.tense || 0) + (m.sad || 0) >= 35) {
+   tenseSec = (m.tense || 0) + (m.sad || 0); tenseApp = { app, sec: tenseSec };
+  }
+  if ((m.happy || 0) > happySec && (m.happy || 0) >= 30) {
+   happySec = m.happy; happyApp = { app, sec: happySec };
+  }
+ }
+ return { tenseApp, happyApp };
+}
+function peakPhoneHour() {
+ const entries = Object.entries(autoProfile.microHabits?.smartphoneHours || {}).sort((a, b) => b[1] - a[1]);
+ return entries.length && entries[0][1] >= 2 ? { hour: Number(entries[0][0]), count: entries[0][1] } : null;
+}
 function buildLearnedCoaching() {
  const flow = bestFlowApp(), sw = worstSwitchingApp(), gain = breakGainPct();
  const peak = peakHour(), weak = weakHour(), thr = learnedThreshold(), tr = autoProfile.triggers || {};
+ const chain = topEscapeChain(), moodApps = stressfulOrHappyApp(), phonePeak = peakPhoneHour();
  const candidates = [];
+ if (moodApps.tenseApp) {
+  candidates.push({
+   key: 'mood_tense_app',
+   tag: 'BEM-ESTAR & EMOÇÃO',
+   concept: `Carga emocional mais alta em ${moodApps.tenseApp.app}`,
+   lesson: `Notei pelos seus sinais faciais que ${moodApps.tenseApp.app} tende a gerar mais tensão/esforço. Fazer 30s de respiração 4-4-4 e relaxar ombros antes de blocos nele deixa seu ritmo bem mais leve.`,
+   evidence: `Observado em ${fmtMinutes(moodApps.tenseApp.sec)} de sinais faciais locais associados a ${moodApps.tenseApp.app}.`
+  });
+ }
+ if (moodApps.happyApp) {
+  candidates.push({
+   key: 'mood_happy_app',
+   tag: 'ENERGIA POSITIVA',
+   concept: `Clima mais leve e animado em ${moodApps.happyApp.app}`,
+   lesson: `Nos momentos em ${moodApps.happyApp.app}, sua expressão ficou mais animada e relaxada. Usar esse tipo de atividade como recompensa após tarefas difíceis sustenta sua motivação sem desgaste.`,
+   evidence: `Mapeado automaticamente na sua memória cotidiana (${fmtMinutes(moodApps.happyApp.sec)} positivos).`
+  });
+ }
+ if (chain) {
+  candidates.push({
+   key: 'escape_chain',
+   tag: 'HÁBITO MINUCIOSO',
+   concept: `Transição recorrente: ${chain.pair} (${chain.count}x)`,
+   lesson: `Aprendi um detalhe sutil da sua rotina: você costuma migrar na sequência "${chain.pair}". Se perceber esse impulso no meio de uma tarefa, anote o próximo micro-passo antes de trocar de aba.`,
+   evidence: `Padrão de transição detectado ${chain.count} vezes nas trocas reais de janela.`
+  });
+ }
+ if (phonePeak) {
+  candidates.push({
+   key: 'phone_habit',
+   tag: 'ANTI-SMARTPHONE',
+   concept: `Horário com mais desvios para o celular (${phonePeak.hour}h)`,
+   lesson: `Pelos alertas do anti-smartphone, perto das ${phonePeak.hour}h você olha mais vezes para baixo (${phonePeak.count}x). Virar o celular com a tela para baixo nesse horário corta grande parte das quebras de atenção.`,
+   evidence: `Registrado automaticamente pelo detector facial/ocular desde a inicialização.`
+  });
+ }
  if (flow && sw && flow.app !== sw.app) {
   candidates.push({
    key: 'app_contrast',
@@ -1237,6 +1489,54 @@ function evaluateInterventions(now, idleSec) {
    notice: false
   }, 45)) return;
  }
+ // 2c. Acompanhamento emocional e bem-estar (parceiro cotidiano via FACS 468 pontos)
+ const vNow = window.compassoVision;
+ const vFresh = vNow && performance.now() - vNow.ts < 5000 && vNow.face && vNow.mood;
+ if (vFresh) {
+  const m = vNow.mood;
+  const heldSec = (now - (m.since || now)) / 1000;
+  const curApp = state?.live?.app || 'seu computador';
+  if (m.state === 'sad' && heldSec >= 18) {
+   if (fire('mood_sad', {
+    tag: 'BEM-ESTAR EMOCIONAL', concept: 'Expressão abatida percebida — cuidado sem cobrança',
+    lesson: 'Percebi pelos pontos faciais que você parece um pouco mais abatido agora. Tudo bem reduzir o ritmo: tome um copo d’água, coloque uma música que você gosta ou divida a tarefa atual em um passo bem pequeno de 5 min.',
+    narrative: `${user}, notei sua expressão um pouco mais abatida agora. Tudo bem ir com calma — uma pausa leve, água ou uma música boa costumam ajudar.`,
+    evidence: 'Leitura geométrica local (468 pontos FACS) · 100% privada, sem diagnóstico clínico.',
+    feed: 'Cuidado emocional: expressão abatida percebida · pausa leve sugerida',
+    notice: false
+   }, 35)) return;
+  }
+  if (m.state === 'tense' && heldSec >= 18) {
+   if (fire('mood_tense', {
+    tag: 'ALÍVIO DE TENSÃO', concept: 'Tensão facial acumulada — solte ombros e maxilar',
+    lesson: `Percebi testa franzida e tensão sustentada enquanto usa ${curApp}. Descruze a testa, solte o maxilar e faça 3 respirações lentas (4-4-4) antes de insistir no mesmo problema.`,
+    narrative: `${user}, percebi um pouco de tensão facial em ${curApp}. Solte os ombros e respire fundo por 20s para destravar mais leve.`,
+    evidence: 'Sinais geométricos locais de sobrancelha/lábios (FACS) · 100% no seu PC.',
+    feed: `Tensão facial percebida em ${curApp} · relaxamento rápido sugerido`,
+    notice: false
+   }, 30)) return;
+  }
+  if (m.state === 'tired' && heldSec >= 15) {
+   if (fire('mood_tired', {
+    tag: 'SAÚDE & ENERGIA', concept: 'Sinais de cansaço ou sonolência detectados',
+    lesson: 'Notei pálpebras mais pesadas ou bocejo contínuo. Levantar por 2 minutos, olhar para longe por 20s (regra 20-20-20) e hidratar recupera muito mais energia do que forçar a vista.',
+    narrative: `${user}, percebi sinais de cansaço visual agora. Uma pausa rápida de 2 min longe da tela ajuda a recarregar.`,
+    evidence: 'Abertura ocular / bocejo estimados localmente pela câmera.',
+    feed: 'Sinais de cansaço facial · hidratação e pausa visual sugeridas',
+    notice: false
+   }, 30)) return;
+  }
+  if (m.state === 'happy' && heldSec >= 14) {
+   if (fire('mood_happy', {
+    tag: 'FLUXO POSITIVO', concept: `Bom astral percebido em ${curApp}`,
+    lesson: `Que bom ver você animado em ${curApp}! Salvei esse horário e contexto na sua memória cotidiana para ajudar você a repetir as condições em que seu dia rende mais leve.`,
+    narrative: `${user}, ótimo ver você em um clima positivo em ${curApp}! Registrei esse padrão de energia boa no seu perfil.`,
+    evidence: 'Sorriso / expressão positiva mapeada na memória cotidiana local.',
+    feed: `Momento positivo salvo na memória cotidiana (${curApp})`,
+    speak: false, notice: false
+   }, 60)) return;
+  }
+ }
  // 3. Previsão antecipada (silenciosa): avisa no painel/widget alguns minutos ANTES da queda prevista
  if (auto.kind === 'study' && p.risk >= 68 && p.streakMin >= p.thr * 0.78 && p.eta >= 2 && p.eta <= 8) {
   if (fire('pre_fatigue', {
@@ -1375,6 +1675,27 @@ function renderAutopilot(now) {
  $('twinConceptTitle').textContent = l?.concept || 'Mapeamento silencioso do seu cotidiano';
  $('twinLessonText').textContent = l?.lesson || 'Você não precisa selecionar nenhum modelo pronto: a IA aprende como você trabalha, estuda e descansa para melhorar seu ritmo automaticamente.';
  $('twinHabitEvidence').textContent = l?.evidence || 'Ação automática: coletando fluidez e transições de janela.';
+ if ($('twinMemoryChips')) {
+  const chips = [];
+  const vMem = window.compassoVision;
+  const liveMood = vMem && performance.now() - vMem.ts < 8000 && vMem.face && vMem.mood ? vMem.mood : null;
+  const domMood = dominantMoodFrom(autoProfile.moodStats);
+  if (liveMood) chips.push({ cls: `mood-${liveMood.state}`, txt: `Agora: ${liveMood.label}` });
+  else if (domMood) chips.push({ cls: `mood-${domMood.state}`, txt: `Humor predominante: ${domMood.label}` });
+  else chips.push({ cls: '', txt: 'Expressão: aguardando rosto' });
+  chips.push({ cls: '', txt: $('smartphoneAlertEnabled')?.checked ? `Anti-celular: ativo (${autoProfile.microHabits.smartphoneAlerts || 0} desvios)` : 'Anti-celular: pausado' });
+  const pk = peakHour();
+  if (pk !== null) chips.push({ cls: '', txt: `Pico cognitivo: ${pk}h` });
+  const ch = topEscapeChain();
+  if (ch) chips.push({ cls: '', txt: `Cadeia frequente: ${ch.pair} (${ch.count}x)` });
+  if (autoProfile.microHabits.peakCadence > 0) chips.push({ cls: '', txt: `Ritmo pico: ${Math.round(autoProfile.microHabits.peakCadence)} ações/min` });
+  if (autoProfile.blockedDomains.length) chips.push({ cls: '', txt: `Protegidos: ${autoProfile.blockedDomains.slice(-2).join(', ')}` });
+  const memSig = chips.map(c => c.txt).join('|');
+  if ($('twinMemoryChips').dataset.sig !== memSig) {
+   $('twinMemoryChips').dataset.sig = memSig;
+   $('twinMemoryChips').innerHTML = chips.slice(0, 6).map(c => `<span class="twin-chip ${c.cls}">${esc(c.txt)}</span>`).join('');
+  }
+ }
  const feedSig = auto.feed.map(f => f.t.getTime()).join(',');
  if ($('jarvisFeed').dataset.sig !== feedSig) {
   $('jarvisFeed').dataset.sig = feedSig;
@@ -1445,7 +1766,17 @@ function autopilotTick() {
  const idleSec = (now - auto.lastInputAt) / 1000;
  if (idleSec > 150 && kind !== 'hobby' && live.hooks !== false) kind = 'idle';
  const switchedApp = Boolean(app && auto.lastApp && app !== auto.lastApp && !/compasso/i.test(app));
- if (app && app !== auto.lastApp) { if (switchedApp) auto.switches.push(now); auto.lastApp = app; }
+ const prevAppName = auto.lastApp;
+ if (app && app !== auto.lastApp) {
+  if (switchedApp) {
+   auto.switches.push(now);
+   if (prevAppName && !/compasso/i.test(prevAppName)) {
+    const pairKey = `${prevAppName} → ${app}`;
+    autoProfile.transitions[pairKey] = (autoProfile.transitions[pairKey] || 0) + 1;
+   }
+  }
+  auto.lastApp = app;
+ }
  auto.switches = auto.switches.filter(t => now - t <= 600000);
  const day = localDay();
  if (autoProfile.day !== day) { autoProfile.day = day; autoProfile.dayKinds = {}; autoProfile.dayApps = {}; }
@@ -1456,8 +1787,14 @@ function autopilotTick() {
   st.sec += dt; st.kind = kind;
   if (switchedApp) st.switches += 1;
  }
- const hb = autoProfile.hourly[new Date().getHours()] || (autoProfile.hourly[new Date().getHours()] = {}); hb[kind] = (hb[kind] || 0) + dt;
- if (kind === 'study') { if (!auto.streakStart) auto.streakStart = now; auto.streakBreakAt = null; }
+ const curHour = new Date().getHours();
+ const hb = autoProfile.hourly[curHour] || (autoProfile.hourly[curHour] = {}); hb[kind] = (hb[kind] || 0) + dt;
+ if (kind === 'study') {
+  if (!auto.streakStart) auto.streakStart = now;
+  auto.streakBreakAt = null;
+  const streakMins = (now - auto.streakStart) / 60000;
+  if (streakMins > (autoProfile.microHabits.longestStreak || 0)) autoProfile.microHabits.longestStreak = Math.round(streakMins);
+ }
  else if (auto.streakStart) {
   if (kind === 'neutral') { if (!auto.streakBreakAt) auto.streakBreakAt = now; if (now - auto.streakBreakAt > 60000) endStreak(now); }
   else { auto.streakBreakAt = auto.streakBreakAt || now; endStreak(now); }
@@ -1466,11 +1803,38 @@ function autopilotTick() {
  if (app && kind === 'study' && c.last60 > 0 && dt >= 0.8 && !/compasso/i.test(app)) {
   const st = autoProfile.appStats[app];
   if (st) { st.cadenceSum += c.last60; st.samples += 1; }
+  if (c.last60 > (autoProfile.microHabits.peakCadence || 0)) autoProfile.microHabits.peakCadence = c.last60;
   const rec = autoProfile.recovery;
   if (now < auto.postBreakUntil) { rec.afterBreakCadence += c.last60; rec.afterBreakSamples += 1; }
   else { rec.steadyCadence += c.last60; rec.steadySamples += 1; }
  }
  const visionFresh = v && performance.now() - v.ts < 5000;
+ if (visionFresh && v.face && v.mood && dt > 0) {
+  const mk = v.mood.state || 'calm';
+  autoProfile.moodStats[mk] = (autoProfile.moodStats[mk] || 0) + dt;
+  const hm = autoProfile.hourMood[curHour] || (autoProfile.hourMood[curHour] = {});
+  hm[mk] = (hm[mk] || 0) + dt;
+  if (app && !/compasso/i.test(app)) {
+   const am = autoProfile.appMood[app] || (autoProfile.appMood[app] = {});
+   am[mk] = (am[mk] || 0) + dt;
+  }
+  if (v.posture === false && (!auto.lastPostureAt || now - auto.lastPostureAt > 60000)) {
+   auto.lastPostureAt = now;
+   autoProfile.microHabits.postureAlerts = (autoProfile.microHabits.postureAlerts || 0) + 1;
+  }
+ }
+ // Detecção inteligente de abas distrativas durante trabalho/estudo (pergunta antes de bloquear)
+ const distDomain = extractDistractingDomain(live);
+ if (distDomain && hobbySubtype(live) !== 'game' && $('aiAutopilot')?.checked) {
+  const dStat = autoProfile.siteDistractions[distDomain] || (autoProfile.siteDistractions[distDomain] = { sec: 0, visits: 0, lastAt: 0 });
+  if (now - dStat.lastAt > 45000) dStat.visits += 1;
+  dStat.sec += dt;
+  dStat.lastAt = now;
+  const cameFromFocus = auto.prevKind === 'study' || Boolean(auto.streakStart) || (autoProfile.dayKinds.study || 0) >= 120;
+  if (cameFromFocus && (dStat.visits >= 2 || dStat.sec >= 90) && pendingBlockOffer?.domain !== distDomain) {
+   offerTabBlock(distDomain, dStat.visits, dStat.sec / 60);
+  }
+ }
  const gazeAway = visionFresh ? (v.gaze && v.gaze !== 'center') : (c.baseline >= 25 && idleSec < 90);
  auto.stuck = live.hooks !== false && kind === 'study' && now - auto.windowSince > 120000 && c.last60 <= 2 && c.baseline >= 15 && gazeAway && idleSec < 150;
  if (kind !== auto.kind) { auto.transition = { kind, prev: auto.kind, dur: (now - auto.kindSince) / 1000 }; auto.prevKind = auto.kind; auto.kind = kind; auto.kindSince = now; }
@@ -1479,9 +1843,20 @@ function autopilotTick() {
  evaluateInterventions(now, idleSec);
  renderAutopilot(now);
 }
-let jarvisBooted = false, jarvisBootTries = 0;
+let jarvisBooted = false, jarvisBootTries = 0, bootCamRetries = 0;
 async function tryJarvisAutonomousBoot() {
- if (jarvisBooted || !state || document.body.classList.contains('auth-active')) return;
+ if (!state || document.body.classList.contains('auth-active')) return;
+ if (pendingBlockDomainParam) {
+  const dom = pendingBlockDomainParam;
+  pendingBlockDomainParam = null;
+  try {
+   const u = new URL(location.href);
+   u.searchParams.delete('block');
+   history.replaceState({}, '', u.toString());
+  } catch(_) {}
+  setTimeout(() => applyTabBlock(dom), 350);
+ }
+ if (jarvisBooted) return;
  jarvisBooted = true;
  if (!$('aiAutopilot')?.checked) return;
  try {
@@ -1500,7 +1875,14 @@ async function tryJarvisAutonomousBoot() {
    }
    if (state?.active?.goal === 0 && $('goal')) { $('goal').value = 'continuous'; if ($('customGoalField')) $('customGoalField').hidden = true; }
   }
-  if (!cameraOn && !cameraStarting && $('cameraAuto')?.checked) startCamera(false).catch(() => {});
+  if (!cameraOn && !cameraStarting && $('cameraAuto')?.checked) {
+   startCamera(false).then(() => {
+    if (!cameraOn && !cameraManual && bootCamRetries < 2) {
+     bootCamRetries++;
+     setTimeout(() => { if (!cameraOn && !cameraStarting && $('cameraAuto')?.checked) startCamera(false).catch(() => {}); }, 10000);
+    }
+   }).catch(() => {});
+  }
  } catch (_) {
   if (++jarvisBootTries < 3) setTimeout(() => { jarvisBooted = false; }, 3000);
  }
