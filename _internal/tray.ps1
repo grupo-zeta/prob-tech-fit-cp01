@@ -1,6 +1,7 @@
 ﻿param(
     [int]$Port = 8765,
-    [string]$CaptureDir = ''
+    [string]$CaptureDir = '',
+    [string]$BrowserProfile = ''
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -15,8 +16,8 @@ Add-Type -AssemblyName System.Net.Http
 $baseUrl = "http://127.0.0.1:$Port"
 $dataRoot = Join-Path $env:LOCALAPPDATA 'Compasso'
 $posFile = Join-Path $dataRoot 'widget-pos.json'
-$browserProfile = Join-Path $dataRoot 'browser'
-$nativeDll = Join-Path $dataRoot 'CompassoHudNative_v2.dll'
+$browserProfile = if ($BrowserProfile) { $BrowserProfile } else { Join-Path $dataRoot 'browser' }
+$nativeDll = Join-Path $dataRoot 'CompassoHudNative_v3.dll'
 
 $nativeCode = @"
 using System;
@@ -38,6 +39,55 @@ public class CompassoHudNative {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int nCmdShow);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool PostMessageW(IntPtr hwnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [ComImport]
+    [Guid("56FDF342-FD6D-11d0-958A-006097C9A090")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface ITaskbarList {
+        void HrInit();
+        void AddTab(IntPtr hwnd);
+        void DeleteTab(IntPtr hwnd);
+        void ActivateTab(IntPtr hwnd);
+        void SetActiveAlt(IntPtr hwnd);
+    }
+
+    [ComImport]
+    [Guid("56FDF344-FD6D-11d0-958A-006097C9A090")]
+    private class TaskbarListClass {}
+
+    private static ITaskbarList _taskbarList = null;
+    private static bool _taskbarInitTried = false;
+    private static HashSet<IntPtr> _strippedHwnds = new HashSet<IntPtr>();
+
+    private static ITaskbarList GetTaskbarList() {
+        if (_taskbarList != null) return _taskbarList;
+        if (_taskbarInitTried) return null;
+        _taskbarInitTried = true;
+        try {
+            var tb = (ITaskbarList)(new TaskbarListClass());
+            tb.HrInit();
+            _taskbarList = tb;
+        } catch {
+            _taskbarList = null;
+        }
+        return _taskbarList;
+    }
+
+    public static void DeleteTaskbarButton(IntPtr hwnd) {
+        if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) return;
+        try {
+            var tb = GetTaskbarList();
+            if (tb != null) tb.DeleteTab(hwnd);
+        } catch {}
+    }
+
+    public static void AddTaskbarButton(IntPtr hwnd) {
+        if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) return;
+        try {
+            var tb = GetTaskbarList();
+            if (tb != null) tb.AddTab(hwnd);
+        } catch {}
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct WINDOWPOS {
@@ -67,6 +117,7 @@ public class CompassoHudNative {
         int ex = GetWindowLongW(hwnd, -20);
         int desired = (ex | 0x00000080) & ~(0x00000008 | 0x00040000); // WS_EX_TOOLWINDOW, strip TOPMOST & APPWINDOW
         if (ex != desired) SetWindowLongW(hwnd, -20, desired);
+        if (_strippedHwnds.Add(hwnd)) DeleteTaskbarButton(hwnd);
         SetWindowPos(hwnd, new IntPtr(1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
     }
 
@@ -75,6 +126,7 @@ public class CompassoHudNative {
         int ex = GetWindowLongW(hwnd, -20);
         int desired = (ex | 0x00000080 | 0x08000000) & ~0x00040000; // TOOLWINDOW + NOACTIVATE
         if (ex != desired) SetWindowLongW(hwnd, -20, desired);
+        if (_strippedHwnds.Add(hwnd)) DeleteTaskbarButton(hwnd);
     }
 
     public struct HudWin {
@@ -89,8 +141,8 @@ public class CompassoHudNative {
             var cls = new StringBuilder(64);
             GetClassNameW(h, cls, 64);
             if (!cls.ToString().StartsWith("Chrome_WidgetWin")) return true;
-            var sb = new StringBuilder(256);
-            GetWindowTextW(h, sb, 256);
+            var sb = new StringBuilder(512);
+            GetWindowTextW(h, sb, 512);
             string title = sb.ToString();
             if (title == "Compasso \u2022 Widget" || title.StartsWith("Compasso \u2022 Widget | ") ||
                 title == "Compasso \u2022 Painel" || title == "Compasso \u2022 Login") {
@@ -105,20 +157,40 @@ public class CompassoHudNative {
         if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) return;
         int ex = GetWindowLongW(hwnd, -20);
         int desired = (ex | 0x00080000 | 0x00000080 | 0x00000020 | 0x08000000) & ~0x00040000;
-        if (ex != desired) SetWindowLongW(hwnd, -20, desired);
-        SetLayeredWindowAttributes(hwnd, 0, 0, 0x2);
-        SetWindowPos(hwnd, new IntPtr(1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0020);
+        bool needsTransition = (ex & 0x00000080) == 0 || (ex & 0x00040000) != 0 || (ex & 0x00080000) == 0;
+        if (needsTransition) {
+            ShowWindow(hwnd, 0); // SW_HIDE removes existing Windows taskbar entry cleanly
+            SetWindowLongW(hwnd, -20, desired);
+            SetLayeredWindowAttributes(hwnd, 0, 0, 0x2);
+            SetWindowPos(hwnd, new IntPtr(1), 0, 0, 320, 240, 0x0010 | 0x0020);
+            ShowWindow(hwnd, 4); // SW_SHOWNOACTIVATE keeps camera/MediaPipe running invisibly
+            _strippedHwnds.Add(hwnd);
+            DeleteTaskbarButton(hwnd);
+        } else if (ex != desired) {
+            SetWindowLongW(hwnd, -20, desired);
+            SetLayeredWindowAttributes(hwnd, 0, 0, 0x2);
+            SetWindowPos(hwnd, new IntPtr(1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0020);
+            _strippedHwnds.Add(hwnd);
+            DeleteTaskbarButton(hwnd);
+        } else {
+            SetLayeredWindowAttributes(hwnd, 0, 0, 0x2);
+            if (_strippedHwnds.Add(hwnd)) DeleteTaskbarButton(hwnd);
+        }
     }
 
     public static void RestoreForegroundHud(IntPtr hwnd) {
         if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) return;
+        _strippedHwnds.Remove(hwnd);
         int ex = GetWindowLongW(hwnd, -20);
         int desired = (ex | 0x00040000) & ~(0x00000080 | 0x00000020 | 0x08000000 | 0x00080000);
+        bool wasTool = (ex & 0x00000080) != 0;
         if (ex != desired) {
+            if (wasTool) ShowWindow(hwnd, 0);
             SetWindowLongW(hwnd, -20, desired);
             SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0020 | 0x0040);
         }
         ShowWindow(hwnd, 9);
+        AddTaskbarButton(hwnd);
         SetForegroundWindow(hwnd);
     }
 
@@ -160,6 +232,10 @@ $script:failTicks = 0
 $script:desktopOnly = $true
 $script:lastSignalKey = ''
 $script:toastBlockDomain = ''
+$script:toastOpenPanel = $false
+$script:sawPanelOrLogin = $false
+$script:lastBgRespawnAt = [DateTime]::MinValue
+$script:trayStartedAt = Get-Date
 
 function Find-EdgeExe {
     $candidates = @(
@@ -391,15 +467,15 @@ function Invoke-CompassoPost([string]$Action, [string]$Body = '{}') {
 "@
 
 # ==============================================================================
-# TOAST DISCRETO TEMPORARIO (ANTI-SMARTPHONE / PERGUNTA DE BLOQUEIO DE ABA)
+# TOAST DISCRETO TEMPORARIO (ANTI-SMARTPHONE / BLOQUEIO DE ABA / DICAS DO PARCEIRO)
 # ==============================================================================
 [xml]$toastXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="CompassoToast" Width="304" SizeToContent="Height"
+        Title="CompassoToast" Width="314" SizeToContent="Height"
         WindowStyle="None" AllowsTransparency="True" Background="{x:Null}"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize">
-  <Border Margin="8" CornerRadius="12" Background="#EB141923" BorderBrush="#48F97316" BorderThickness="1" Padding="12,10">
+  <Border x:Name="ToastBorder" Margin="8" CornerRadius="12" Background="#EB141923" BorderBrush="#48F97316" BorderThickness="1" Padding="12,10">
     <Border.Effect>
       <DropShadowEffect BlurRadius="14" ShadowDepth="4" Opacity="0.48" Color="Black"/>
     </Border.Effect>
@@ -412,7 +488,7 @@ function Invoke-CompassoPost([string]$Action, [string]$Body = '{}') {
           <TextBlock x:Name="ToastTitle" Text="Parceiro Compasso" Foreground="#F3F4F6" FontSize="11.5" FontWeight="SemiBold"/>
         </StackPanel>
       </DockPanel>
-      <TextBlock x:Name="ToastBody" Text="" Foreground="#CBD5E1" FontSize="10.8" TextWrapping="Wrap" LineHeight="15" Margin="0,0,0,8"/>
+      <TextBlock x:Name="ToastBody" Text="" Foreground="#CBD5E1" FontSize="10.8" TextWrapping="Wrap" LineHeight="15.5" Margin="0,0,0,8"/>
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
         <Button x:Name="ToastSecondaryBtn" Content="Agora n&#x00E3;o" Padding="9,4" Margin="0,0,6,0"
                 Background="#22FFFFFF" Foreground="#E5E7EB" BorderThickness="0" FontSize="10.5" Cursor="Hand"/>
@@ -429,6 +505,7 @@ $win = [Windows.Markup.XamlReader]::Load($reader)
 
 $toastReader = New-Object System.Xml.XmlNodeReader $toastXaml
 $toastWin = [Windows.Markup.XamlReader]::Load($toastReader)
+$ToastBorder       = $toastWin.FindName('ToastBorder')
 $ToastTitle        = $toastWin.FindName('ToastTitle')
 $ToastBody         = $toastWin.FindName('ToastBody')
 $ToastDot          = $toastWin.FindName('ToastDot')
@@ -447,31 +524,58 @@ $toastHideTimer.Add_Tick({
     $toastWin.Hide()
 })
 
-function Show-PartnerToast([string]$kind, [string]$domain = '') {
+function Show-PartnerToast([string]$kind, [string]$arg1 = '', [string]$arg2 = '') {
     $toastHideTimer.Stop()
     $bc = [System.Windows.Media.BrushConverter]::new()
     if ($kind -eq 'PHONE') {
         $script:toastBlockDomain = ''
+        $script:toastOpenPanel = $false
         $ToastTitle.Text = 'Anti-smartphone ativo'
-        $ToastBody.Text = (U 'Olhar abaixo da tela (>5s) detectado. Retome o foco no monitor quando puder.')
+        $ToastBody.Text = (U 'Olhar abaixo da tela (>7s sem digitar) detectado. Retome o foco no monitor quando puder.')
         $ToastDot.Fill = $bc.ConvertFromString('#F97316')
+        $ToastBorder.BorderBrush = $bc.ConvertFromString('#48F97316')
         $ToastPrimaryBtn.Content = 'Entendi'
         $ToastSecondaryBtn.Visibility = [System.Windows.Visibility]::Collapsed
         $toastHideTimer.Interval = [TimeSpan]::FromSeconds(7)
+    } elseif ($kind -eq 'TIP') {
+        $script:toastBlockDomain = ''
+        $script:toastOpenPanel = $true
+        $tagTxt = if ($arg1) { $arg1.Trim() } else { 'Parceiro IA' }
+        $ToastTitle.Text = (U "Compasso \u00B7 $tagTxt")
+        $ToastBody.Text = $arg2
+        $accentHex = '#38BDF8'
+        $borderHex = '#4838BDF8'
+        if ($tagTxt -match 'JOGO|HOBBY|PAUSA|ENERGIA|POSITIVO') {
+            $accentHex = '#10B981'; $borderHex = '#4810B981'
+        } elseif ($tagTxt -match 'BEM-ESTAR|EMO|TENS|SA.DE') {
+            $accentHex = '#60A5FA'; $borderHex = '#4860A5FA'
+        } elseif ($tagTxt -match 'PREDITIV|LIMIAR|DISTRA|TRAVAMENTO|ATEN') {
+            $accentHex = '#F97316'; $borderHex = '#48F97316'
+        }
+        $ToastDot.Fill = $bc.ConvertFromString($accentHex)
+        $ToastBorder.BorderBrush = $bc.ConvertFromString($borderHex)
+        $ToastPrimaryBtn.Content = 'Ver no painel'
+        $ToastSecondaryBtn.Visibility = [System.Windows.Visibility]::Collapsed
+        $toastHideTimer.Interval = [TimeSpan]::FromSeconds(9)
     } else {
-        $script:toastBlockDomain = $domain
+        $script:toastBlockDomain = $arg1
+        $script:toastOpenPanel = $false
         $ToastTitle.Text = 'Parceiro IA'
-        $ToastBody.Text = (U "Notei que $domain est\u00E1 interrompendo seu foco agora. Deseja bloquear esta aba?")
+        $ToastBody.Text = (U "Notei que $arg1 est\u00E1 interrompendo seu foco agora. Deseja bloquear esta aba?")
         $ToastDot.Fill = $bc.ConvertFromString('#10B981')
+        $ToastBorder.BorderBrush = $bc.ConvertFromString('#4810B981')
         $ToastPrimaryBtn.Content = 'Bloquear aba'
         $ToastSecondaryBtn.Content = (U 'Agora n\u00E3o')
         $ToastSecondaryBtn.Visibility = [System.Windows.Visibility]::Visible
         $toastHideTimer.Interval = [TimeSpan]::FromSeconds(14)
     }
     $wa = [System.Windows.SystemParameters]::WorkArea
-    $toastWin.Left = [Math]::Max($wa.Left + 10, $wa.Right - 314)
-    $toastWin.Top = [Math]::Max($wa.Top + 10, $wa.Bottom - 122)
+    $toastWin.Left = [Math]::Max($wa.Left + 10, $wa.Right - 324)
+    $toastWin.Top = [Math]::Max($wa.Top + 10, $wa.Bottom - 148)
     $toastWin.Show()
+    $toastWin.UpdateLayout()
+    $h = if ($toastWin.ActualHeight -gt 60) { $toastWin.ActualHeight } else { 132 }
+    $toastWin.Top = [Math]::Max($wa.Top + 10, $wa.Bottom - $h - 10)
     $toastHideTimer.Start()
 }
 
@@ -484,6 +588,9 @@ $ToastPrimaryBtn.Add_Click({
         $dom = [Uri]::EscapeDataString($script:toastBlockDomain)
         $script:toastBlockDomain = ''
         Open-FullPanel $dom
+    } elseif ($script:toastOpenPanel) {
+        $script:toastOpenPanel = $false
+        Open-FullPanel
     }
 })
 
@@ -757,6 +864,21 @@ function Show-FloatingWidget {
     Sync-TrayLabel
 }
 
+function Start-BackgroundHud {
+    if ($script:isClosing -or $CaptureDir) { return }
+    $edgeExe = Find-EdgeExe
+    if (-not $edgeExe) { return }
+    $bgUrl = "$baseUrl/?v=4.2&startup=1&bg=1"
+    try {
+        Start-Process -FilePath $edgeExe -ArgumentList @(
+            "--app=$bgUrl",
+            "--window-size=320,240",
+            "--window-position=-32000,-32000",
+            "--user-data-dir=$browserProfile"
+        ) | Out-Null
+    } catch {}
+}
+
 function Open-FullPanel([string]$blockDomain = '') {
     $script:userHidWidget = $false
     $huds = [CompassoHudNative]::FindCompassoHudWindows()
@@ -764,6 +886,14 @@ function Open-FullPanel([string]$blockDomain = '') {
     if ($panelHud -and -not $blockDomain) {
         [CompassoHudNative]::RestoreForegroundHud($panelHud.Hwnd)
         return
+    }
+    # Libera a webcam do HUD invisivel antes de abrir o painel completo e pausa respawn por 8s
+    $script:lastBgRespawnAt = Get-Date
+    $widgetPrefix = (U 'Compasso \u2022 Widget')
+    foreach ($wh in $huds) {
+        if ($wh.Title -eq $widgetPrefix -or $wh.Title.StartsWith("$widgetPrefix | ")) {
+            [CompassoHudNative]::CloseHud($wh.Hwnd) | Out-Null
+        }
     }
     $edgeExe = Find-EdgeExe
     $url = if ($blockDomain) { "$baseUrl/?panel=1&block=$blockDomain" } else { "$baseUrl/?panel=1" }
@@ -875,10 +1005,13 @@ $syncTimer.Add_Tick({
         }
         $huds = [CompassoHudNative]::FindCompassoHudWindows()
         $hasPanelOrLogin = $false
+        $hasWidgetHud = $false
         $widgetPrefix = (U 'Compasso \u2022 Widget')
         foreach ($h in $huds) {
             if ($h.Title -eq (U 'Compasso \u2022 Painel') -or $h.Title -eq (U 'Compasso \u2022 Login')) {
                 $hasPanelOrLogin = $true
+                $script:sawPanelOrLogin = $true
+                $script:lastBgRespawnAt = [DateTime]::MinValue
                 if (($h.ExStyle -band 0x00080080) -ne 0) {
                     [CompassoHudNative]::RestoreForegroundHud($h.Hwnd) | Out-Null
                 }
@@ -889,6 +1022,7 @@ $syncTimer.Add_Tick({
                 if ($hasPanelOrLogin) {
                     [CompassoHudNative]::CloseHud($h.Hwnd) | Out-Null
                 } else {
+                    $hasWidgetHud = $true
                     $script:hiddenHudHwnd = $h.Hwnd
                     [CompassoHudNative]::HideBackgroundHud($h.Hwnd) | Out-Null
                     if ($h.Title.StartsWith("$widgetPrefix | ")) {
@@ -899,6 +1033,8 @@ $syncTimer.Add_Tick({
                                 Show-PartnerToast 'PHONE'
                             } elseif ($sig -match '^BLOCK:([^#]+)#') {
                                 Show-PartnerToast 'BLOCK' $Matches[1]
+                            } elseif ($sig -match '^TIP:([^|]+)\|([^#]+)#') {
+                                Show-PartnerToast 'TIP' $Matches[1] $Matches[2]
                             }
                         }
                     }
@@ -912,9 +1048,24 @@ $syncTimer.Add_Tick({
                 $win.Hide()
                 Sync-TrayLabel
             }
-        } elseif ($script:autoHidForPanel -and -not $script:userHidWidget) {
-            $script:autoHidForPanel = $false
-            Show-FloatingWidget
+        } else {
+            if ($script:autoHidForPanel -and -not $script:userHidWidget) {
+                $script:autoHidForPanel = $false
+                Show-FloatingWidget
+            }
+            # Se o usuario fechou o Painel pelo [X] (ou se o motor em segundo plano caiu),
+            # reabre o HUD invisivel na bandeja para manter webcam + IA ativos sem icone na barra de tarefas.
+            if (-not $hasWidgetHud -and -not $script:isClosing) {
+                $activeRunning = ($null -ne $script:latestState) -and ($null -ne $script:latestState.active) -and (-not [bool]$script:latestState.paused)
+                $nowDt = Get-Date
+                $canRespawn = (($nowDt - $script:lastBgRespawnAt).TotalSeconds -ge 8)
+                $shouldRespawn = $script:sawPanelOrLogin -or ($activeRunning -and (($nowDt - $script:trayStartedAt).TotalSeconds -ge 6))
+                if ($canRespawn -and $shouldRespawn) {
+                    $script:sawPanelOrLogin = $false
+                    $script:lastBgRespawnAt = $nowDt
+                    Start-BackgroundHud
+                }
+            }
         }
     }
 })
